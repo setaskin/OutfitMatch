@@ -2,85 +2,107 @@
 //  ContentView.swift
 //  OutfitMatch
 //
-//  Created by Selo on 8/27/26.
-//
 
 import SwiftUI
-import CoreData
+import PhotosUI
 
 struct ContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
-        animation: .default)
-    private var items: FetchedResults<Item>
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedImage: UIImage?
+    @State private var navigateToResults = false
+    @State private var isCheckingPhoto = false
+    @State private var showNoClothingAlert = false
 
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
+        NavigationStack {
+            VStack(spacing: 24) {
+                Spacer()
+
+                if let selectedImage {
+                    Image(uiImage: selectedImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 320)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                } else {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.secondarySystemBackground))
+                        .frame(height: 320)
+                        .overlay(
+                            VStack(spacing: 12) {
+                                Image(systemName: "camera.viewfinder")
+                                    .font(.system(size: 48))
+                                    .foregroundStyle(.secondary)
+                                Text("Choose a photo of an outfit or item")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        )
+                }
+
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    Label("Choose Photo", systemImage: "photo.on.rectangle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .padding(.horizontal)
+
+                Button {
+                    findMatches()
+                } label: {
+                    if isCheckingPhoto {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Label("Find Matches", systemImage: "sparkle.magnifyingglass")
+                            .frame(maxWidth: .infinity)
                     }
                 }
-                .onDelete(perform: deleteItems)
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedImage == nil || isCheckingPhoto)
+                .padding(.horizontal)
+
+                Spacer()
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
+            .padding()
+            .navigationTitle("OutfitMatch")
+            .navigationDestination(isPresented: $navigateToResults) {
+                if let selectedImage {
+                    ResultsView(capturedImage: selectedImage)
                 }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+            }
+            .onChange(of: selectedPhotoItem) { _, newItem in
+                Task {
+                    if let data = try? await newItem?.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        selectedImage = image
                     }
                 }
             }
-            Text("Select an item")
+            .alert("No Outfit Found", isPresented: $showNoClothingAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("We couldn't find any clothing in this photo. Please add a photo with an outfit or clothing item.")
+            }
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
+    private func findMatches() {
+        guard let selectedImage else { return }
+        Task {
+            isCheckingPhoto = true
+            let hasClothing = await ClothingDetector.containsClothing(in: selectedImage)
+            isCheckingPhoto = false
 
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+            if hasClothing {
+                navigateToResults = true
+            } else {
+                showNoClothingAlert = true
             }
         }
     }
 }
 
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()
-
 #Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ContentView()
 }

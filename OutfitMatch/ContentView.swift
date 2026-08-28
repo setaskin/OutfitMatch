@@ -9,7 +9,7 @@ import PhotosUI
 struct ContentView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
-    @State private var detectedCategory: ClothingCategory?
+    @State private var detectedCategories: [ClothingCategory] = []
     @State private var navigateToResults = false
     @State private var isCheckingPhoto = false
     @State private var showNoClothingAlert = false
@@ -68,8 +68,8 @@ struct ContentView: View {
             .padding()
             .navigationTitle("OutfitMatch")
             .navigationDestination(isPresented: $navigateToResults) {
-                if let selectedImage, let detectedCategory {
-                    ResultsView(capturedImage: selectedImage, category: detectedCategory)
+                if let selectedImage {
+                    ResultsView(capturedImage: selectedImage, categories: detectedCategories)
                 }
             }
             .onChange(of: selectedPhotoItem) { _, newItem in
@@ -92,14 +92,14 @@ struct ContentView: View {
         guard let selectedImage else { return }
         Task {
             isCheckingPhoto = true
-            let category = await ClothingDetector.analyze(selectedImage)
+            let categories = await ClothingDetector.analyzeAll(selectedImage)
             isCheckingPhoto = false
 
-            if let category {
-                detectedCategory = category
-                navigateToResults = true
-            } else {
+            if categories.isEmpty {
                 showNoClothingAlert = true
+            } else {
+                detectedCategories = categories
+                navigateToResults = true
             }
         }
     }

@@ -7,9 +7,9 @@ import SwiftUI
 
 struct ResultsView: View {
     let capturedImage: UIImage
-    let category: ClothingCategory
+    let categories: [ClothingCategory]
 
-    @State private var results: [MatchResult] = []
+    @State private var resultsByCategory: [(category: ClothingCategory, results: [MatchResult])] = []
     @State private var isSearching = true
 
     var body: some View {
@@ -42,26 +42,52 @@ struct ResultsView: View {
         .navigationTitle("Matches")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            results = await MockSearch.find(for: category)
+            resultsByCategory = await withTaskGroup(of: (Int, ClothingCategory, [MatchResult]).self) { group in
+                for (index, category) in categories.enumerated() {
+                    group.addTask {
+                        let results = await MockSearch.find(for: category)
+                        return (index, category, results)
+                    }
+                }
+
+                var ordered = Array(repeating: (ClothingCategory.general, [MatchResult]()), count: categories.count)
+                for await (index, category, results) in group {
+                    ordered[index] = (category, results)
+                }
+                return ordered
+            }
             isSearching = false
         }
     }
 
     private var resultsList: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ForEach(groupedSections, id: \.title) { section in
-                Text(section.title)
-                    .font(.headline)
-                    .padding(.top, 4)
+        VStack(alignment: .leading, spacing: 28) {
+            if categories.count > 1 {
+                Text("Found \(categories.count) items in this photo")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
 
-                ForEach(section.items) { item in
-                    MatchRow(item: item)
+            ForEach(resultsByCategory, id: \.category) { entry in
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(entry.category.displayName)
+                        .font(.title3.weight(.bold))
+
+                    ForEach(groupedSections(for: entry.results), id: \.title) { section in
+                        Text(section.title)
+                            .font(.headline)
+                            .padding(.top, 4)
+
+                        ForEach(section.items) { item in
+                            MatchRow(item: item)
+                        }
+                    }
                 }
             }
         }
     }
 
-    private var groupedSections: [(title: String, items: [MatchResult])] {
+    private func groupedSections(for results: [MatchResult]) -> [(title: String, items: [MatchResult])] {
         let exact = results.filter { $0.matchType == .exact }
         let alternatives = results.filter { $0.matchType == .alternative }
         var sections: [(String, [MatchResult])] = []
@@ -107,6 +133,6 @@ private struct MatchRow: View {
 
 #Preview {
     NavigationStack {
-        ResultsView(capturedImage: UIImage(systemName: "tshirt.fill")!, category: .outerwear)
+        ResultsView(capturedImage: UIImage(systemName: "tshirt.fill")!, categories: [.outerwear, .footwear])
     }
 }

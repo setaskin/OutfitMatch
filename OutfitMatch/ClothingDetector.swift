@@ -9,26 +9,38 @@
 import Vision
 import UIKit
 
+enum ClothingCategory {
+    case footwear
+    case outerwear
+    case dress
+    case top
+    case bottom
+    case general
+}
+
 enum ClothingDetector {
-    private static let clothingKeywords: Set<String> = [
-        "clothing", "attire", "apparel", "garment", "fashion",
-        "shirt", "t-shirt", "blouse", "top", "dress", "gown",
-        "jacket", "coat", "blazer", "trousers", "pants", "jean",
-        "skirt", "suit", "sweater", "hoodie", "cardigan", "shorts",
-        "footwear", "shoe", "sneaker", "boot", "sandal", "heel",
-        "hat", "cap", "beanie", "scarf", "necktie", "tie",
-        "handbag", "purse", "belt", "glove", "sock", "swimwear"
+    // Ordered so more specific categories are checked before the catch-all
+    // "general" bucket. The first category whose keywords match the
+    // highest-confidence observation wins.
+    private static let categoryKeywords: [(ClothingCategory, Set<String>)] = [
+        (.footwear, ["footwear", "shoe", "sneaker", "boot", "sandal", "heel"]),
+        (.outerwear, ["jacket", "coat", "blazer"]),
+        (.dress, ["dress", "gown"]),
+        (.top, ["shirt", "t-shirt", "blouse", "top", "sweater", "hoodie", "cardigan", "necktie", "tie"]),
+        (.bottom, ["trousers", "pants", "jean", "skirt", "shorts"]),
+        (.general, ["clothing", "attire", "apparel", "garment", "fashion", "suit", "swimwear", "handbag", "purse", "belt", "glove", "sock", "hat", "cap", "beanie", "scarf"]),
     ]
 
-    static func containsClothing(in image: UIImage) async -> Bool {
+    /// Returns the detected clothing category, or nil if no clothing was found.
+    static func analyze(_ image: UIImage) async -> ClothingCategory? {
         #if targetEnvironment(simulator)
         // VNClassifyImageRequest's CoreML backend doesn't run in the iOS
         // Simulator (it fails with "Failed to create espresso context" on
         // every call, regardless of image content). It works normally on a
         // real device, so skip the gate here rather than block testing.
-        return true
+        return .general
         #else
-        guard let cgImage = image.cgImage else { return false }
+        guard let cgImage = image.cgImage else { return nil }
         let orientation = CGImagePropertyOrientation(image.imageOrientation)
 
         return await withCheckedContinuation { continuation in
@@ -41,14 +53,19 @@ enum ClothingDetector {
                         .sorted { $0.confidence > $1.confidence }
                         .prefix(20)
 
-                    let found = observations.contains { observation in
+                    for observation in observations {
+                        guard observation.confidence > 0.08 else { continue }
                         let identifier = observation.identifier.lowercased()
-                        return observation.confidence > 0.08
-                            && clothingKeywords.contains { identifier.contains($0) }
+                        if let match = categoryKeywords.first(where: { _, keywords in
+                            keywords.contains { identifier.contains($0) }
+                        }) {
+                            continuation.resume(returning: match.0)
+                            return
+                        }
                     }
-                    continuation.resume(returning: found)
+                    continuation.resume(returning: nil)
                 } catch {
-                    continuation.resume(returning: false)
+                    continuation.resume(returning: nil)
                 }
             }
         }

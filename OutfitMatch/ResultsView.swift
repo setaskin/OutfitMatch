@@ -7,6 +7,7 @@ import SwiftUI
 
 struct ResultsView: View {
     let capturedImage: UIImage
+    let category: ClothingCategory
 
     @State private var results: [MatchResult] = []
     @State private var isSearching = true
@@ -41,7 +42,7 @@ struct ResultsView: View {
         .navigationTitle("Matches")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            results = await MockSearch.find(for: capturedImage.jpegData(compressionQuality: 0.8))
+            results = await MockSearch.find(for: category)
             isSearching = false
         }
     }
@@ -106,6 +107,6 @@ private struct MatchRow: View {
 
 #Preview {
     NavigationStack {
-        ResultsView(capturedImage: UIImage(systemName: "tshirt.fill")!)
+        ResultsView(capturedImage: UIImage(systemName: "tshirt.fill")!, category: .outerwear)
     }
 }

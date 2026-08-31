@@ -1,0 +1,10 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+.DS_Store
+DerivedData/
+
+# Backend (Python)
+backend/.env
+backend/.venv/
+backend/__pycache__/

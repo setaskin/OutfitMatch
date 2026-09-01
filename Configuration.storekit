@@ -1,0 +1,42 @@
+{
+  "identifier" : "8F3A2C10-1B4E-4D6F-9A2B-3C5D7E8F9A10",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_locale" : "en_US"
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21A9B4C5-6D7E-4F80-9123-45B6C7D8E9F0",
+      "localizations" : [],
+      "name" : "Style Advisor Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "3B2C1D0E-5F6A-4B7C-8D9E-0F1A2B3C4D5E",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited AI-powered styling advice based on your photos.",
+              "displayName" : "Style Advisor Premium",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.selengt.OutfitMatch.styleadvisor.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Style Advisor Monthly",
+          "subscriptionGroupID" : "21A9B4C5-6D7E-4F80-9123-45B6C7D8E9F0",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

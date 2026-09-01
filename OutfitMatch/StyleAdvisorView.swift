@@ -5,11 +5,17 @@
 //  Upload a photo of yourself or an outfit, ask a styling question (e.g.
 //  "what shoes go with these jeans, casual Gen Z style?"), and Claude looks
 //  at the photo to give real advice plus shoppable recommendations.
+//
+//  Free tier: a few free style checks (StyleAdvisorAccess), then it
+//  requires the Style Advisor Premium subscription (SubscriptionManager).
 
 import SwiftUI
 import PhotosUI
 
 struct StyleAdvisorView: View {
+    @StateObject private var subscriptionManager = SubscriptionManager()
+    @StateObject private var access = StyleAdvisorAccess()
+
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
     @State private var question = ""
@@ -18,7 +24,26 @@ struct StyleAdvisorView: View {
     @State private var advice: StyleAdvice?
     @State private var navigateToResults = false
 
+    private var hasAccess: Bool {
+        subscriptionManager.isSubscribed || access.freeUsesRemaining > 0
+    }
+
     var body: some View {
+        Group {
+            if hasAccess {
+                form
+            } else {
+                StyleAdvisorPaywallView(subscriptionManager: subscriptionManager)
+            }
+        }
+        .navigationDestination(isPresented: $navigateToResults) {
+            if let advice {
+                StyleAdviceResultsView(advice: advice)
+            }
+        }
+    }
+
+    private var form: some View {
         ScrollView {
             VStack(spacing: 20) {
                 if let selectedImage {
@@ -71,6 +96,12 @@ struct StyleAdvisorView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(selectedImage == nil || trimmedQuestion.isEmpty || isSubmitting)
 
+                if !subscriptionManager.isSubscribed {
+                    Text("\(access.freeUsesRemaining) free style check\(access.freeUsesRemaining == 1 ? "" : "s") remaining")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.caption)
@@ -81,11 +112,6 @@ struct StyleAdvisorView: View {
         }
         .navigationTitle("Style Advisor")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $navigateToResults) {
-            if let advice {
-                StyleAdviceResultsView(advice: advice)
-            }
-        }
         .onChange(of: selectedPhotoItem) { _, newItem in
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self),
@@ -109,6 +135,9 @@ struct StyleAdvisorView: View {
             do {
                 advice = try await StyleAdviceService.getAdvice(image: selectedImage, question: trimmedQuestion)
                 isSubmitting = false
+                if !subscriptionManager.isSubscribed {
+                    access.consumeFreeUse()
+                }
                 navigateToResults = true
             } catch {
                 isSubmitting = false

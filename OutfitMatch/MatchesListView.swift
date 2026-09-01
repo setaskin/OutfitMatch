@@ -2,10 +2,10 @@
 //  MatchesListView.swift
 //  OutfitMatch
 //
-//  Shared results rendering used by both the photo-search flow
-//  (ResultsView) and the chat flow (ChatResultsView). Poshmark-style photo
-//  grid: large product image, price and title below. The single closest
-//  match gets a full-width hero card; alternatives fill a 2-column grid.
+//  Shared results rendering used by the photo-search, chat, and style
+//  advisor flows. Poshmark-style photo grid: large product image, price
+//  and title below. The single closest match gets a full-width hero card;
+//  alternatives fill a 2-column grid. Styled with the Scan Line theme.
 
 import SwiftUI
 
@@ -21,16 +21,14 @@ struct MatchesListView: View {
         VStack(alignment: .leading, spacing: 24) {
             if let exactMatch {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Closest Match")
-                        .font(.headline)
+                    sectionHeader("Closest Match")
                     MatchCard(item: exactMatch, imageAspectRatio: 4.0 / 3.0)
                 }
             }
 
             if !alternatives.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Cheaper Alternatives")
-                        .font(.headline)
+                    sectionHeader("Cheaper Alternatives")
 
                     LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(alternatives) { item in
@@ -40,6 +38,12 @@ struct MatchesListView: View {
                 }
             }
         }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(ScanFont.display(15, weight: .semibold))
+            .foregroundStyle(Color.scanInk)
     }
 
     private var exactMatch: MatchResult? {
@@ -65,18 +69,18 @@ struct MatchCard: View {
                 thumbnail
 
                 Text(item.price, format: .currency(code: "USD"))
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.primary)
+                    .font(ScanFont.display(14, weight: .bold))
+                    .foregroundStyle(Color.scanMint)
 
                 Text(item.title)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.scanInk.opacity(0.85))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 Text(item.retailer)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .font(ScanFont.mono(10))
+                    .foregroundStyle(Color.scanInkDim)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -88,7 +92,7 @@ struct MatchCard: View {
     @ViewBuilder
     private var thumbnail: some View {
         RoundedRectangle(cornerRadius: 14)
-            .fill(Color(.secondarySystemBackground))
+            .fill(Color.scanSurface)
             .aspectRatio(imageAspectRatio, contentMode: .fit)
             .overlay {
                 if let url = item.thumbnailURL {
@@ -98,13 +102,13 @@ struct MatchCard: View {
                         } else {
                             Image(systemName: "tshirt.fill")
                                 .font(.system(size: 28))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.scanInkDim)
                         }
                     }
                 } else {
                     Image(systemName: "tshirt.fill")
                         .font(.system(size: 28))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.scanInkDim)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -118,12 +122,13 @@ struct EmptyMatchesView: View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.scanInkDim)
             Text("No matches found")
-                .font(.headline)
+                .font(ScanFont.display(15, weight: .semibold))
+                .foregroundStyle(Color.scanInk)
             Text(subtitle)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.scanInkDim)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)

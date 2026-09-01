@@ -31,8 +31,8 @@ struct ResultsView: View {
 
                 if !categories.isEmpty {
                     Text("Detected: \(categories.map(\.displayName).joined(separator: ", "))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(ScanFont.mono(11))
+                        .foregroundStyle(Color.scanInkDim)
                 }
 
                 switch loadState {
@@ -41,8 +41,9 @@ struct ResultsView: View {
                         Spacer()
                         VStack(spacing: 12) {
                             ProgressView()
+                                .tint(Color.scanMint)
                             Text("Searching for matches…")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.scanInkDim)
                         }
                         Spacer()
                     }
@@ -57,8 +58,11 @@ struct ResultsView: View {
             }
             .padding()
         }
+        .background(Color.scanBackground.ignoresSafeArea())
         .navigationTitle("Matches")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.scanBackground, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .task {
             await runSearch()
         }
@@ -90,17 +94,19 @@ struct ResultsView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.scanAmber)
             Text("Search failed")
-                .font(.headline)
+                .font(ScanFont.display(15, weight: .semibold))
+                .foregroundStyle(Color.scanInk)
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.scanInkDim)
                 .multilineTextAlignment(.center)
             Button("Try Again") {
                 Task { await runSearch() }
             }
             .buttonStyle(.bordered)
+            .tint(Color.scanMint)
             .padding(.top, 8)
         }
         .frame(maxWidth: .infinity)

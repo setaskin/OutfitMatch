@@ -3,39 +3,57 @@
 //  OutfitMatch
 //
 //  Shared results rendering used by both the photo-search flow
-//  (ResultsView) and the chat flow (ChatResultsView).
+//  (ResultsView) and the chat flow (ChatResultsView). Poshmark-style photo
+//  grid: large product image, price and title below. The single closest
+//  match gets a full-width hero card; alternatives fill a 2-column grid.
 
 import SwiftUI
 
 struct MatchesListView: View {
     let results: [MatchResult]
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ForEach(groupedSections, id: \.title) { section in
-                Text(section.title)
-                    .font(.headline)
-                    .padding(.top, 4)
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+    ]
 
-                ForEach(section.items) { item in
-                    MatchRow(item: item)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            if let exactMatch {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Closest Match")
+                        .font(.headline)
+                    MatchCard(item: exactMatch, imageAspectRatio: 4.0 / 3.0)
+                }
+            }
+
+            if !alternatives.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Cheaper Alternatives")
+                        .font(.headline)
+
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(alternatives) { item in
+                            MatchCard(item: item, imageAspectRatio: 3.0 / 4.0)
+                        }
+                    }
                 }
             }
         }
     }
 
-    private var groupedSections: [(title: String, items: [MatchResult])] {
-        let exact = results.filter { $0.matchType == .exact }
-        let alternatives = results.filter { $0.matchType == .alternative }
-        var sections: [(String, [MatchResult])] = []
-        if !exact.isEmpty { sections.append(("Closest Match", exact)) }
-        if !alternatives.isEmpty { sections.append(("Cheaper Alternatives", alternatives)) }
-        return sections
+    private var exactMatch: MatchResult? {
+        results.first { $0.matchType == .exact }
+    }
+
+    private var alternatives: [MatchResult] {
+        results.filter { $0.matchType == .alternative }
     }
 }
 
-struct MatchRow: View {
+struct MatchCard: View {
     let item: MatchResult
+    var imageAspectRatio: CGFloat = 3.0 / 4.0
 
     var body: some View {
         Button {
@@ -43,29 +61,25 @@ struct MatchRow: View {
                 UIApplication.shared.open(link)
             }
         } label: {
-            HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
                 thumbnail
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(item.title)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                    Text(item.retailer)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
                 Text(item.price, format: .currency(code: "USD"))
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
+
+                Text(item.title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+
+                Text(item.retailer)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
-            .padding(12)
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
         .disabled(item.link == nil)
@@ -73,9 +87,9 @@ struct MatchRow: View {
 
     @ViewBuilder
     private var thumbnail: some View {
-        RoundedRectangle(cornerRadius: 12)
+        RoundedRectangle(cornerRadius: 14)
             .fill(Color(.secondarySystemBackground))
-            .frame(width: 64, height: 64)
+            .aspectRatio(imageAspectRatio, contentMode: .fit)
             .overlay {
                 if let url = item.thumbnailURL {
                     AsyncImage(url: url) { phase in
@@ -83,15 +97,17 @@ struct MatchRow: View {
                             image.resizable().scaledToFill()
                         } else {
                             Image(systemName: "tshirt.fill")
+                                .font(.system(size: 28))
                                 .foregroundStyle(.secondary)
                         }
                     }
                 } else {
                     Image(systemName: "tshirt.fill")
+                        .font(.system(size: 28))
                         .foregroundStyle(.secondary)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
 

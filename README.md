@@ -26,7 +26,10 @@ local backend so the API keys never ship inside the app.
 5. **Chat search ("Describe It")** — `ChatView.swift` has a short back-and-
    forth with Claude (via the backend's `/chat` endpoint), which asks a
    couple of clarifying questions (color, style, budget) and then runs a
-   real SerpApi Google Shopping search once it has enough detail.
+   real SerpApi Google Shopping search once it has enough detail. A mic
+   button lets you speak your description instead of typing it —
+   `SpeechRecognizer.swift` uses Apple's on-device Speech framework (no
+   network call) to stream a live transcript into the text field.
 6. **Style Advisor** — `StyleAdvisorView.swift` lets you upload a photo of
    yourself or an outfit and ask a styling question (e.g. "what shoes go
    with these jeans, casual Gen Z style?"). Claude actually looks at the

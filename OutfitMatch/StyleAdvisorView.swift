@@ -23,6 +23,9 @@ struct StyleAdvisorView: View {
     @State private var errorMessage: String?
     @State private var advice: StyleAdvice?
     @State private var navigateToResults = false
+    @State private var showCamera = false
+
+    private let isCameraAvailable = UIImagePickerController.isSourceTypeAvailable(.camera)
 
     private var hasAccess: Bool {
         subscriptionManager.isSubscribed || access.freeUsesRemaining > 0
@@ -68,11 +71,23 @@ struct StyleAdvisorView: View {
                         )
                 }
 
-                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                    Label("Choose Photo", systemImage: "photo.on.rectangle")
-                        .frame(maxWidth: .infinity)
+                HStack(spacing: 12) {
+                    if isCameraAvailable {
+                        Button {
+                            showCamera = true
+                        } label: {
+                            Label("Camera", systemImage: "camera")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        Label("Library", systemImage: "photo.on.rectangle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
 
                 TextField(
                     "What shoes go with these jeans? Casual Gen Z style…",
@@ -119,6 +134,10 @@ struct StyleAdvisorView: View {
                     selectedImage = image
                 }
             }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraCapture(image: $selectedImage)
+                .ignoresSafeArea()
         }
     }
 

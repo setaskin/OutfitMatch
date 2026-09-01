@@ -13,6 +13,9 @@ struct ContentView: View {
     @State private var navigateToResults = false
     @State private var isCheckingPhoto = false
     @State private var showNoClothingAlert = false
+    @State private var showCamera = false
+
+    private let isCameraAvailable = UIImagePickerController.isSourceTypeAvailable(.camera)
 
     var body: some View {
         NavigationStack {
@@ -41,11 +44,23 @@ struct ContentView: View {
                         )
                 }
 
-                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                    Label("Choose Photo", systemImage: "photo.on.rectangle")
-                        .frame(maxWidth: .infinity)
+                HStack(spacing: 12) {
+                    if isCameraAvailable {
+                        Button {
+                            showCamera = true
+                        } label: {
+                            Label("Camera", systemImage: "camera")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        Label("Library", systemImage: "photo.on.rectangle")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
                 .padding(.horizontal)
 
                 Button {
@@ -101,6 +116,10 @@ struct ContentView: View {
                         selectedImage = image
                     }
                 }
+            }
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraCapture(image: $selectedImage)
+                    .ignoresSafeArea()
             }
             .alert("No Outfit Found", isPresented: $showNoClothingAlert) {
                 Button("OK", role: .cancel) {}

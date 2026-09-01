@@ -397,6 +397,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "OutfitMatch uses your camera so you can take a photo of an outfit directly in the app.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "OutfitMatch uses your microphone so you can describe the outfit you're looking for by voice.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "OutfitMatch turns your spoken description into text using speech recognition.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -430,6 +431,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "OutfitMatch uses your camera so you can take a photo of an outfit directly in the app.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "OutfitMatch uses your microphone so you can describe the outfit you're looking for by voice.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "OutfitMatch turns your spoken description into text using speech recognition.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

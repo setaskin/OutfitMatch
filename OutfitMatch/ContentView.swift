@@ -168,7 +168,7 @@ struct ContentView: View {
             .foregroundStyle(Color.scanBackground)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(Color.scanMint)
+            .background(Color.scanAmber)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }

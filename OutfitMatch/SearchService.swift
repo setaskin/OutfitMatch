@@ -15,18 +15,12 @@ enum SearchServiceError: Error {
 }
 
 enum SearchService {
-    // Simulator only: this is the Mac's own loopback address, reachable
-    // because the Simulator shares the host's network stack. Testing on a
-    // real device needs the Mac's LAN IP instead (e.g. http://192.168.x.x:5050)
-    // since "localhost" on a physical iPhone means the iPhone itself.
-    private static let baseURL = URL(string: "http://127.0.0.1:5050")!
-
     static func search(image: UIImage, category: ClothingCategory) async throws -> [MatchResult] {
         guard let jpegData = image.jpegData(compressionQuality: 0.8) else {
             throw SearchServiceError.invalidImage
         }
 
-        var request = URLRequest(url: baseURL.appendingPathComponent("search"))
+        var request = URLRequest(url: BackendConfig.baseURL.appendingPathComponent("search"))
         request.httpMethod = "POST"
 
         let boundary = UUID().uuidString
@@ -71,28 +65,8 @@ enum SearchService {
 }
 
 private struct SearchResponse: Decodable {
-    let matches: [RemoteMatch]?
+    let matches: [RemoteMatchDTO]?
     let error: String?
-}
-
-private struct RemoteMatch: Decodable {
-    let title: String
-    let retailer: String
-    let price: Double
-    let link: String?
-    let thumbnail: String?
-    let matchType: String
-
-    func toMatchResult() -> MatchResult {
-        MatchResult(
-            title: title,
-            retailer: retailer,
-            price: price,
-            matchType: matchType == "exact" ? .exact : .alternative,
-            link: link.flatMap(URL.init),
-            thumbnailURL: thumbnail.flatMap(URL.init)
-        )
-    }
 }
 
 private extension ClothingCategory {

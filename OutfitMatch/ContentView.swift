@@ -63,6 +63,19 @@ struct ContentView: View {
                 .disabled(selectedImage == nil || isCheckingPhoto)
                 .padding(.horizontal)
 
+                Text("or")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                NavigationLink {
+                    ChatView()
+                } label: {
+                    Label("Describe It", systemImage: "bubble.left.and.text.bubble.right")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .padding(.horizontal)
+
                 Spacer()
             }
             .padding()

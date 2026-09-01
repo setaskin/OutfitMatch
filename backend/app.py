@@ -7,8 +7,10 @@ and this server does the SerpApi calls and returns simplified results.
 """
 
 import io
+import json
 import os
 
+import anthropic
 import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
@@ -20,6 +22,23 @@ SERPAPI_KEY = os.environ.get("SERPAPI_KEY")
 SERPAPI_MAX_BYTES = 500 * 1024  # SerpApi's image upload limit
 
 app = Flask(__name__)
+
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+ANTHROPIC_WORKSPACE_ID = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+# Constructed lazily so a missing key doesn't crash the whole server at
+# startup — /search should keep working even before this key is set.
+anthropic_client = (
+    anthropic.Anthropic(
+        api_key=ANTHROPIC_API_KEY,
+        # Identity-linked keys (e.g. from Google/SSO sign-in) require this
+        # header on every request; plain keys ignore it.
+        default_headers=(
+            {"anthropic-workspace-id": ANTHROPIC_WORKSPACE_ID} if ANTHROPIC_WORKSPACE_ID else None
+        ),
+    )
+    if ANTHROPIC_API_KEY
+    else None
+)
 
 
 def compress_for_upload(image_bytes):
@@ -91,13 +110,26 @@ def is_relevant(item, category):
     return any(keyword in title for keyword in keywords)
 
 
+def split_exact_and_alternatives(priced_items, get_price):
+    """Shared ranking rule: the first (highest-ranked) priced item is the
+    closest match; anything genuinely cheaper than it becomes an
+    alternative, cheapest first."""
+    if not priced_items:
+        return []
+
+    exact = priced_items[0]
+    exact_price = get_price(exact)
+    alternatives = sorted(
+        (item for item in priced_items[1:] if get_price(item) < exact_price),
+        key=get_price,
+    )
+    return [exact] + alternatives[:5]
+
+
 def to_matches(visual_matches, category):
     """Keep only results with real price data whose title actually matches
     the detected clothing category (Lens mixes in unrelated visual matches
-    like stickers or gift cards that happen to have price data). The first
-    remaining result (Lens's top-ranked relevant, priced result) is the
-    closest match; anything genuinely cheaper than it becomes an
-    alternative."""
+    like stickers or gift cards that happen to have price data)."""
     relevant = [m for m in visual_matches if is_relevant(m, category)]
     priced = [m for m in relevant if m.get("price", {}).get("extracted_value") is not None]
 
@@ -107,27 +139,83 @@ def to_matches(visual_matches, category):
         # result rather than showing nothing.
         priced = [m for m in visual_matches if m.get("price", {}).get("extracted_value") is not None]
 
-    if not priced:
-        return []
+    ranked = split_exact_and_alternatives(priced, lambda m: m["price"]["extracted_value"])
 
-    exact = priced[0]
-    exact_price = exact["price"]["extracted_value"]
-    alternatives = sorted(
-        (m for m in priced[1:] if m["price"]["extracted_value"] < exact_price),
-        key=lambda m: m["price"]["extracted_value"],
-    )
-
-    def to_match(item, match_type):
-        return {
+    return [
+        {
             "title": item.get("title", "Unknown item"),
             "retailer": item.get("source", "Unknown"),
             "price": item["price"]["extracted_value"],
             "link": item.get("link"),
             "thumbnail": item.get("thumbnail"),
-            "matchType": match_type,
+            "matchType": "exact" if index == 0 else "alternative",
         }
+        for index, item in enumerate(ranked)
+    ]
 
-    return [to_match(exact, "exact")] + [to_match(m, "alternative") for m in alternatives[:5]]
+
+def search_google_shopping(query):
+    response = requests.get(
+        "https://serpapi.com/search",
+        params={"engine": "google_shopping", "q": query, "api_key": SERPAPI_KEY},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json().get("shopping_results", [])
+
+
+def to_shopping_matches(shopping_results):
+    priced = [r for r in shopping_results if r.get("extracted_price") is not None]
+    ranked = split_exact_and_alternatives(priced, lambda r: r["extracted_price"])
+
+    return [
+        {
+            "title": item.get("title", "Unknown item"),
+            "retailer": item.get("source", "Unknown"),
+            "price": item["extracted_price"],
+            "link": item.get("product_link"),
+            "thumbnail": item.get("thumbnail"),
+            "matchType": "exact" if index == 0 else "alternative",
+        }
+        for index, item in enumerate(ranked)
+    ]
+
+
+CHAT_SYSTEM_PROMPT = """You are a friendly shopping assistant inside the OutfitMatch app. \
+The user will describe a clothing or footwear item they want to buy. Your job is to figure \
+out enough detail to run a good product search — typically the item type, color, and style, \
+and budget if they mention one. Ask at most 2-3 short, conversational follow-up questions, \
+one at a time. Once you have enough detail, stop asking and produce a concise search query \
+(item + color + style keywords, suitable for a Google Shopping search).
+
+Respond with JSON matching this shape:
+{"action": "ask" or "search", "message": "your reply to show the user", "query": "search query, only when action is search"}"""
+
+CHAT_OUTPUT_SCHEMA = {
+    "type": "json_schema",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string", "enum": ["ask", "search"]},
+            "message": {"type": "string"},
+            "query": {"type": ["string", "null"]},
+        },
+        "required": ["action", "message", "query"],
+        "additionalProperties": False,
+    },
+}
+
+
+def get_chat_decision(history):
+    response = anthropic_client.messages.create(
+        model="claude-opus-5",
+        max_tokens=1024,
+        system=CHAT_SYSTEM_PROMPT,
+        messages=history,
+        output_config={"format": CHAT_OUTPUT_SCHEMA},
+    )
+    text = next(block.text for block in response.content if block.type == "text")
+    return json.loads(text)
 
 
 @app.route("/search", methods=["POST"])
@@ -155,6 +243,36 @@ def search():
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"matches": matches})
+
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    if not anthropic_client:
+        return jsonify({"error": "Server is missing ANTHROPIC_API_KEY"}), 500
+    if not SERPAPI_KEY:
+        return jsonify({"error": "Server is missing SERPAPI_KEY"}), 500
+
+    data = request.get_json(silent=True) or {}
+    history = data.get("messages")
+    if not history:
+        return jsonify({"error": "No messages provided"}), 400
+
+    try:
+        decision = get_chat_decision(history)
+    except anthropic.APIError as e:
+        return jsonify({"error": f"Claude request failed: {e}"}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if decision.get("action") == "search" and decision.get("query"):
+        try:
+            shopping_results = search_google_shopping(decision["query"])
+            matches = to_shopping_matches(shopping_results)
+        except requests.RequestException as e:
+            return jsonify({"error": f"SerpApi request failed: {e}"}), 502
+        return jsonify({"action": "search", "message": decision["message"], "matches": matches})
+
+    return jsonify({"action": "ask", "message": decision.get("message", "")})
 
 
 @app.route("/health", methods=["GET"])

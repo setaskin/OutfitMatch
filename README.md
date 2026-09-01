@@ -64,6 +64,61 @@ apart, correctly rejecting photos with no clothing, and getting well-filtered
 search results all need a physical iPhone to test properly. (The chat path
 doesn't have this limitation — it doesn't depend on Vision at all.)
 
+## Architecture
+
+**Client/server split.** The iOS app never talks to SerpApi or Anthropic
+directly — both API keys would be trivially extractable from the app
+binary otherwise. Every search and every Claude call goes through a small
+Flask proxy (`backend/app.py`) that holds the real keys server-side and
+returns only the simplified JSON the app needs. The app talks to exactly
+one thing: its own backend.
+
+**iOS app.** SwiftUI throughout, with a deliberately light hand on
+abstraction: most screens hold their own `@State` and call a stateless,
+`async`/`await` service (`SearchService`, `ChatService`,
+`StyleAdviceService`) directly — there's no view-model layer sitting
+between them, since a screen that just needs "fetch and render" doesn't
+need one. `ObservableObject` is reserved for state that actually outlives
+a single screen or needs observing: `SubscriptionManager` (StoreKit 2
+purchase state), `StyleAdvisorAccess` (the free-use counter), and
+`SpeechRecognizer` (live mic transcription). Clothing detection
+(`ClothingDetector.swift`) runs Apple's Vision framework entirely
+on-device — no photo is ever sent anywhere just to check whether it
+contains clothing — and degrades gracefully in the Simulator, where
+Vision's classifier doesn't run at all, by falling back to a generic
+category instead of crashing or silently returning nothing.
+
+**Backend.** The Flask proxy is intentionally thin — its job is
+translation and cleanup, not business logic. A few things worth calling
+out:
+- `compress_for_upload` adaptively downscales and re-compresses each
+  photo (shrinking dimensions, then quality) in a loop until it clears
+  SerpApi's 500KB upload limit, rather than hard-failing on large photos.
+- Google Lens mixes unrelated priced results (stickers, gift cards) into
+  its "visual matches." `is_relevant` filters those out using per-category
+  keyword matching against the on-device Vision guess, with a fallback to
+  unfiltered results if the filter is too aggressive and returns nothing.
+- Both search paths (Lens for photos, Google Shopping for chat and style
+  advice) end up needing the same ranking rule — first result is the
+  closest match, anything genuinely cheaper becomes an alternative — so
+  that logic lives once, in `split_exact_and_alternatives`, and both
+  `to_matches` and `to_shopping_matches` call it instead of duplicating it.
+- Chat and style advice both call Claude with `output_config`/JSON schema
+  rather than parsing free-form text, so a malformed or chatty model
+  response can't silently break the app — the response is either valid
+  JSON matching the schema or the request fails loudly.
+
+**Data flow**, one line per path:
+- *Photo* → on-device Vision category guess → backend `/search` → SerpApi
+  Google Lens → category-filtered, ranked results.
+- *Chat* → backend `/chat` (Claude decides: ask another question, or
+  search) → SerpApi Google Shopping once Claude has enough detail →
+  ranked results.
+- *Style Advisor* → photo + question → backend `/style-advice` → Claude
+  (vision) returns advice plus 2-3 shopping queries → each query run
+  through Google Shopping independently → advice and per-recommendation
+  results returned together.
+
 ## Project structure
 
 ```

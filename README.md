@@ -1,4 +1,4 @@
-# OutfitMatch
+<img src="docs/logo-lockup.png" alt="OutfitMatch" height="60">
 
 > **Portfolio project.** See [LICENSE](LICENSE) — all rights reserved,
 > not licensed for reuse.

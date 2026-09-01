@@ -63,37 +63,39 @@ struct RemoteMatchDTOTests {
 
 // MARK: - StyleAdvisorAccess
 
+private final class InMemoryFreeUseStore: FreeUseStore {
+    private var value: Int?
+    func readCount() -> Int? { value }
+    func writeCount(_ count: Int) { value = count }
+}
+
 @MainActor
 struct StyleAdvisorAccessTests {
-    private func freshDefaults() -> UserDefaults {
-        UserDefaults(suiteName: "OutfitMatchTests.\(UUID().uuidString)")!
-    }
-
     @Test func startsWithThreeFreeUses() {
-        let access = StyleAdvisorAccess(defaults: freshDefaults())
+        let access = StyleAdvisorAccess(store: InMemoryFreeUseStore())
         #expect(access.freeUsesRemaining == StyleAdvisorAccess.initialFreeUses)
         #expect(StyleAdvisorAccess.initialFreeUses == 3)
     }
 
     @Test func consumingUseDecrementsByOne() {
-        let access = StyleAdvisorAccess(defaults: freshDefaults())
+        let access = StyleAdvisorAccess(store: InMemoryFreeUseStore())
         access.consumeFreeUse()
         #expect(access.freeUsesRemaining == 2)
     }
 
     @Test func neverGoesBelowZero() {
-        let access = StyleAdvisorAccess(defaults: freshDefaults())
+        let access = StyleAdvisorAccess(store: InMemoryFreeUseStore())
         for _ in 0..<10 { access.consumeFreeUse() }
         #expect(access.freeUsesRemaining == 0)
     }
 
-    @Test func persistsAcrossInstancesSharingTheSameDefaults() {
-        let defaults = freshDefaults()
-        let first = StyleAdvisorAccess(defaults: defaults)
+    @Test func persistsAcrossInstancesSharingTheSameStore() {
+        let store = InMemoryFreeUseStore()
+        let first = StyleAdvisorAccess(store: store)
         first.consumeFreeUse()
         first.consumeFreeUse()
 
-        let second = StyleAdvisorAccess(defaults: defaults)
+        let second = StyleAdvisorAccess(store: store)
         #expect(second.freeUsesRemaining == 1)
     }
 }

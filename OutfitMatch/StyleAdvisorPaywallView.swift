@@ -19,6 +19,7 @@ struct StyleAdvisorPaywallView: View {
                 Image(systemName: "wand.and.stars")
                     .font(.system(size: 56))
                     .foregroundStyle(Color.scanMint)
+                    .accessibilityHidden(true)
 
                 Text("Style Advisor Premium")
                     .font(ScanFont.display(21, weight: .bold))
@@ -57,10 +58,25 @@ struct StyleAdvisorPaywallView: View {
                 .disabled(subscriptionManager.isPurchasing || subscriptionManager.product == nil)
                 .padding(.horizontal)
 
+                if let product = subscriptionManager.product {
+                    Text("\(product.displayPrice) per month, billed to your Apple ID. Renews automatically unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in Settings.")
+                        .font(.caption2)
+                        .foregroundStyle(Color.scanInkDim)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+
                 Button("Restore Purchases") {
                     Task { await subscriptionManager.restorePurchases() }
                 }
                 .font(.footnote)
+                .foregroundStyle(Color.scanInkDim)
+
+                HStack(spacing: 16) {
+                    Link("Terms of Use", destination: URL(string: "https://github.com/setaskin/OutfitMatch/blob/main/TERMS.md")!)
+                    Link("Privacy Policy", destination: URL(string: "https://github.com/setaskin/OutfitMatch/blob/main/PRIVACY.md")!)
+                }
+                .font(.caption2)
                 .foregroundStyle(Color.scanInkDim)
 
                 if let errorMessage = subscriptionManager.errorMessage {

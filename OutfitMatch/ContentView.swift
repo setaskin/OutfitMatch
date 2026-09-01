@@ -118,13 +118,16 @@ struct ContentView: View {
                         .clipped()
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 18))
+                .accessibilityLabel("Selected photo")
             } else {
                 RoundedRectangle(cornerRadius: 10)
                     .strokeBorder(Color.scanHairline, style: StrokeStyle(lineWidth: 1.5, dash: [4, 5]))
                     .padding(44)
+                    .accessibilityHidden(true)
             }
 
             ViewfinderCorners()
+                .accessibilityHidden(true)
 
             VStack {
                 HStack {
@@ -145,6 +148,7 @@ struct ContentView: View {
                 }
             }
             .padding(14)
+            .accessibilityHidden(true)
         }
         .frame(height: 340)
     }
@@ -162,6 +166,7 @@ struct ContentView: View {
         } label: {
             HStack(spacing: 7) {
                 Image(systemName: "camera.fill")
+                    .accessibilityHidden(true)
                 Text("Scan")
             }
             .font(ScanFont.display(14, weight: .bold))
@@ -222,6 +227,7 @@ struct ContentView: View {
                 Image(systemName: icon)
                     .font(.system(size: 17))
                     .foregroundStyle(iconColor)
+                    .accessibilityHidden(true)
                 Text(title)
                     .font(ScanFont.display(13, weight: .semibold))
                     .foregroundStyle(Color.scanInk)

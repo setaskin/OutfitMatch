@@ -67,6 +67,7 @@ struct MatchCard: View {
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 thumbnail
+                    .accessibilityHidden(true)
 
                 Text(item.price, format: .currency(code: "USD"))
                     .font(ScanFont.display(14, weight: .bold))
@@ -84,6 +85,7 @@ struct MatchCard: View {
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
         }
         .buttonStyle(.plain)
         .disabled(item.link == nil)

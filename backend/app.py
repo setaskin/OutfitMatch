@@ -15,6 +15,8 @@ import anthropic
 import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from PIL import Image
 
 load_dotenv()
@@ -23,6 +25,18 @@ SERPAPI_KEY = os.environ.get("SERPAPI_KEY")
 SERPAPI_MAX_BYTES = 500 * 1024  # SerpApi's image upload limit
 
 app = Flask(__name__)
+
+# Every request here costs real money (SerpApi/Anthropic calls), and there's
+# no per-user auth to scope abuse to one account — so it's scoped to the
+# caller's IP instead. In-memory storage is fine for a single-process dev
+# server; a real multi-instance deployment would want a shared backend
+# (e.g. Redis) so limits are enforced across all instances, not per-process.
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 ANTHROPIC_WORKSPACE_ID = os.environ.get("ANTHROPIC_WORKSPACE_ID")
@@ -281,6 +295,7 @@ def get_style_advice(image_bytes, question):
 
 
 @app.route("/search", methods=["POST"])
+@limiter.limit("20 per hour")
 def search():
     if not SERPAPI_KEY:
         return jsonify({"error": "Server is missing SERPAPI_KEY"}), 500
@@ -308,6 +323,7 @@ def search():
 
 
 @app.route("/chat", methods=["POST"])
+@limiter.limit("30 per hour")
 def chat():
     if not anthropic_client:
         return jsonify({"error": "Server is missing ANTHROPIC_API_KEY"}), 500
@@ -338,6 +354,7 @@ def chat():
 
 
 @app.route("/style-advice", methods=["POST"])
+@limiter.limit("20 per hour")
 def style_advice():
     if not anthropic_client:
         return jsonify({"error": "Server is missing ANTHROPIC_API_KEY"}), 500
@@ -380,6 +397,7 @@ def style_advice():
 
 
 @app.route("/health", methods=["GET"])
+@limiter.exempt
 def health():
     return jsonify({"status": "ok"})
 

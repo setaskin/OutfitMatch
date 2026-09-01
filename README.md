@@ -1,7 +1,7 @@
 <img src="docs/logo-lockup.png" alt="OutfitMatch" height="60">
 
 > **Portfolio project.** See [LICENSE](LICENSE) — all rights reserved,
-> not licensed for reuse.
+> not licensed for reuse. [Privacy Policy](PRIVACY.md) · [Terms of Use](TERMS.md)
 
 An iOS app: take a photo of an outfit or a single clothing item — or just
 describe it in chat — and get the closest match plus genuinely cheaper
@@ -192,8 +192,9 @@ properly):
 3. Select your iPhone from Xcode's run destination dropdown and hit Run.
 4. Update `BackendConfig.baseURL` to the Mac's LAN IP (e.g.
    `http://192.168.x.x:5050`) instead of `127.0.0.1` — a real device can't
-   reach the Mac via loopback. You'll also need an App Transport Security /
-   local network exception in Info.plist, not yet set up.
+   reach the Mac via loopback. `Info.plist` already allows plain-HTTP
+   connections to local-network addresses (`NSAllowsLocalNetworking`), so
+   no further ATS setup is needed for this.
 
 ## Tests
 
@@ -224,7 +225,14 @@ drift anyway.
 
 ## Next steps
 
-- Local-network ATS exception + `NSLocalNetworkUsageDescription` for
-  real-device search testing.
 - Deploy the backend somewhere reachable outside your own Wi-Fi (currently
-  `localhost`-only, fine for development).
+  `localhost`-only, fine for development) — needs real hosting, HTTPS, and
+  a paid SerpApi plan (the free tier is 250 searches/month) before it
+  could serve real users.
+- Apple Developer Program enrollment, a real StoreKit subscription
+  product in App Store Connect, and TestFlight testing before any App
+  Store submission.
+- Real-device testing of clothing detection (Vision doesn't run in the
+  Simulator — see the limitation noted above).
+- An accessibility pass beyond the VoiceOver labels already in place
+  (Dynamic Type, more thorough VoiceOver testing).

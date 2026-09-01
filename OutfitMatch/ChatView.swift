@@ -67,6 +67,7 @@ struct ChatView: View {
                         .frame(width: 34, height: 34)
                 }
                 .disabled(isSending)
+                .accessibilityLabel(speechRecognizer.isRecording ? "Stop voice input" : "Start voice input")
 
                 TextField("", text: $inputText, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -95,6 +96,7 @@ struct ChatView: View {
                         )
                 }
                 .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+                .accessibilityLabel("Send")
             }
             .padding()
         }

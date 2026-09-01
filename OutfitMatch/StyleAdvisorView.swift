@@ -55,6 +55,7 @@ struct StyleAdvisorView: View {
                         .scaledToFit()
                         .frame(maxHeight: 280)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .accessibilityLabel("Selected photo")
                 } else {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(Color.scanSurface)
@@ -64,6 +65,7 @@ struct StyleAdvisorView: View {
                                 Image(systemName: "person.crop.rectangle")
                                     .font(.system(size: 44))
                                     .foregroundStyle(Color.scanInkDim)
+                                    .accessibilityHidden(true)
                                 Text("Add a photo of yourself or your outfit")
                                     .font(.subheadline)
                                     .foregroundStyle(Color.scanInkDim)

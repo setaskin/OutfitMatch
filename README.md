@@ -27,9 +27,16 @@ local backend so the API keys never ship inside the app.
    forth with Claude (via the backend's `/chat` endpoint), which asks a
    couple of clarifying questions (color, style, budget) and then runs a
    real SerpApi Google Shopping search once it has enough detail.
-6. **Results** — both paths land on a closest match plus any results that
-   are genuinely cheaper, with real thumbnails/prices, tappable to open the
-   retailer's product page (`MatchesListView.swift`, shared by both flows).
+6. **Style Advisor** — `StyleAdvisorView.swift` lets you upload a photo of
+   yourself or an outfit and ask a styling question (e.g. "what shoes go
+   with these jeans, casual Gen Z style?"). Claude actually looks at the
+   photo (vision) and returns a short styling explanation plus 2-3 concrete
+   recommendations, each backed by its own real SerpApi Google Shopping
+   search — via the backend's `/style-advice` endpoint.
+7. **Results** — all three paths land on a closest match plus any results
+   that are genuinely cheaper, shown as a photo grid (hero card + 2-column
+   grid) with real thumbnails/prices, tappable to open the retailer's
+   product page (`MatchesListView.swift`, shared by all three flows).
 
 ## Known limitation: Simulator vs. real device
 
@@ -48,20 +55,23 @@ doesn't have this limitation — it doesn't depend on Vision at all.)
 
 ```
 OutfitMatch/
-├── OutfitMatchApp.swift     App entry point
-├── ContentView.swift        Home screen: photo picker + "Describe It" entry
-├── ClothingDetector.swift   On-device Vision-based clothing detection
-├── Models.swift             Data models (MatchResult, ChatMessage, etc.)
-├── BackendConfig.swift      Backend base URL
-├── SearchService.swift      Photo search: talks to backend's /search
-├── ChatService.swift        Chat search: talks to backend's /chat
-├── ResultsView.swift        Results screen for the photo path
-├── ChatView.swift           Chat conversation screen
-├── ChatResultsView.swift    Results screen for the chat path
-└── MatchesListView.swift    Shared match-row rendering (both result screens)
+├── OutfitMatchApp.swift       App entry point
+├── ContentView.swift          Home screen: photo, "Describe It", "Style Advisor" entries
+├── ClothingDetector.swift     On-device Vision-based clothing detection
+├── Models.swift               Data models (MatchResult, ChatMessage, StyleAdvice, etc.)
+├── BackendConfig.swift        Backend base URL
+├── SearchService.swift        Photo search: talks to backend's /search
+├── ChatService.swift          Chat search: talks to backend's /chat
+├── StyleAdviceService.swift   Style advisor: talks to backend's /style-advice
+├── ResultsView.swift          Results screen for the photo path
+├── ChatView.swift             Chat conversation screen
+├── ChatResultsView.swift      Results screen for the chat path
+├── StyleAdvisorView.swift     Style advisor input screen (photo + question)
+├── StyleAdviceResultsView.swift  Style advice + per-recommendation results
+└── MatchesListView.swift      Shared photo-grid results rendering (all three flows)
 
 backend/
-├── app.py                   Flask proxy: /search (Lens) and /chat (Claude + Shopping)
+├── app.py                   Flask proxy: /search (Lens), /chat, /style-advice (Claude + Shopping)
 ├── requirements.txt
 └── .env                     Holds API keys (gitignored, not committed)
 ```

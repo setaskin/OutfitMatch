@@ -15,8 +15,9 @@ local backend so the API keys never ship inside the app.
 
 ## What works right now
 
-1. **Home screen** — pick a photo from your library, or describe what you
-   want in chat instead (`ContentView.swift`).
+1. **Home screen** — take a photo with the camera or pick one from your
+   library (`CameraCapture.swift`), or describe what you want in chat
+   instead (`ContentView.swift`).
 2. **Clothing detection (photo path)** — the photo is analyzed on-device
    with Apple's Vision framework (`ClothingDetector.swift`) to check whether
    it actually contains clothing, and to guess what *kind* (footwear,
@@ -134,6 +135,5 @@ properly):
 
 - Local-network ATS exception + `NSLocalNetworkUsageDescription` for
   real-device search testing.
-- Camera capture (currently photo-library only).
 - Deploy the backend somewhere reachable outside your own Wi-Fi (currently
   `localhost`-only, fine for development).

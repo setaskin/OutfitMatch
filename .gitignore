@@ -3,6 +3,7 @@ xcuserdata/
 *.xcuserstate
 .DS_Store
 DerivedData/
+build/
 
 # Backend (Python)
 backend/.env

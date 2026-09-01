@@ -40,6 +40,12 @@ local backend so the API keys never ship inside the app.
    that are genuinely cheaper, shown as a photo grid (hero card + 2-column
    grid) with real thumbnails/prices, tappable to open the retailer's
    product page (`MatchesListView.swift`, shared by all three flows).
+8. **Style Advisor is the paid tier** — photo search and chat search are
+   free. Style Advisor gives 3 free style checks (`StyleAdvisorAccess.swift`,
+   tracked locally), then requires the "Style Advisor Premium" subscription
+   ($4.99/month, `SubscriptionManager.swift`, StoreKit 2). Test locally with
+   `Configuration.storekit` — only works when launched from Xcode itself
+   (Cmd+R), not via command-line installs.
 
 ## Known limitation: Simulator vs. real device
 
@@ -71,12 +77,17 @@ OutfitMatch/
 ├── ChatResultsView.swift      Results screen for the chat path
 ├── StyleAdvisorView.swift     Style advisor input screen (photo + question)
 ├── StyleAdviceResultsView.swift  Style advice + per-recommendation results
+├── StyleAdvisorAccess.swift   Free-use counter for Style Advisor (3 free tries)
+├── SubscriptionManager.swift  StoreKit 2 wrapper for the Style Advisor subscription
+├── StyleAdvisorPaywallView.swift  Shown once free tries run out
 └── MatchesListView.swift      Shared photo-grid results rendering (all three flows)
 
 backend/
 ├── app.py                   Flask proxy: /search (Lens), /chat, /style-advice (Claude + Shopping)
 ├── requirements.txt
 └── .env                     Holds API keys (gitignored, not committed)
+
+Configuration.storekit        Local StoreKit product definitions (Style Advisor Premium, $4.99/mo)
 ```
 
 ## Running it

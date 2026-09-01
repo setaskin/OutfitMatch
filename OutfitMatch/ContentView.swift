@@ -76,6 +76,15 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .padding(.horizontal)
 
+                NavigationLink {
+                    StyleAdvisorView()
+                } label: {
+                    Label("Style Advisor", systemImage: "wand.and.stars")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .padding(.horizontal)
+
                 Spacer()
             }
             .padding()

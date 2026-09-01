@@ -6,6 +6,7 @@ extractable from the app binary). Instead it uploads the photo here,
 and this server does the SerpApi calls and returns simplified results.
 """
 
+import base64
 import io
 import json
 import os
@@ -218,6 +219,67 @@ def get_chat_decision(history):
     return json.loads(text)
 
 
+STYLE_ADVICE_SYSTEM_PROMPT = """You are a fashion stylist inside the OutfitMatch app. The \
+user will show you a photo — of themselves, an outfit, or a single item — and ask a styling \
+question, e.g. what shoes to pair with the jeans they're wearing, or what would go with a \
+piece shown in the photo. Actually look at what's in the photo (colors, fit, style) and \
+answer their specific question, honoring any style/vibe they mention (e.g. "casual Gen Z").
+
+Give a short (2-3 sentence) styling explanation, then 2-3 concrete, specific product \
+recommendations that fit — specific enough to shop for (e.g. "white chunky dad sneakers", \
+not just "sneakers"). Each needs a short display label and a search-engine-friendly query \
+string suitable for a Google Shopping search.
+
+Respond with JSON matching this shape:
+{"advice": "your styling explanation", "recommendations": [{"label": "short display name", "query": "shopping search query"}]}"""
+
+STYLE_ADVICE_OUTPUT_SCHEMA = {
+    "type": "json_schema",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "advice": {"type": "string"},
+            "recommendations": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "label": {"type": "string"},
+                        "query": {"type": "string"},
+                    },
+                    "required": ["label", "query"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["advice", "recommendations"],
+        "additionalProperties": False,
+    },
+}
+
+
+def get_style_advice(image_bytes, question):
+    image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+    response = anthropic_client.messages.create(
+        model="claude-opus-5",
+        max_tokens=1024,
+        system=STYLE_ADVICE_SYSTEM_PROMPT,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64},
+                },
+                {"type": "text", "text": question},
+            ],
+        }],
+        output_config={"format": STYLE_ADVICE_OUTPUT_SCHEMA},
+    )
+    text = next(block.text for block in response.content if block.type == "text")
+    return json.loads(text)
+
+
 @app.route("/search", methods=["POST"])
 def search():
     if not SERPAPI_KEY:
@@ -273,6 +335,48 @@ def chat():
         return jsonify({"action": "search", "message": decision["message"], "matches": matches})
 
     return jsonify({"action": "ask", "message": decision.get("message", "")})
+
+
+@app.route("/style-advice", methods=["POST"])
+def style_advice():
+    if not anthropic_client:
+        return jsonify({"error": "Server is missing ANTHROPIC_API_KEY"}), 500
+    if not SERPAPI_KEY:
+        return jsonify({"error": "Server is missing SERPAPI_KEY"}), 500
+
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+
+    image_bytes = request.files["image"].read()
+    if not image_bytes:
+        return jsonify({"error": "Empty image"}), 400
+
+    question = request.form.get("question", "").strip()
+    if not question:
+        return jsonify({"error": "No question provided"}), 400
+
+    try:
+        compressed = compress_for_upload(image_bytes)
+        decision = get_style_advice(compressed, question)
+    except anthropic.APIError as e:
+        return jsonify({"error": f"Claude request failed: {e}"}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    recommendations = []
+    for rec in decision.get("recommendations", [])[:3]:
+        query = rec.get("query")
+        label = rec.get("label") or query or "Recommendation"
+        matches = []
+        if query:
+            try:
+                shopping_results = search_google_shopping(query)
+                matches = to_shopping_matches(shopping_results)
+            except requests.RequestException:
+                matches = []
+        recommendations.append({"label": label, "matches": matches})
+
+    return jsonify({"advice": decision.get("advice", ""), "recommendations": recommendations})
 
 
 @app.route("/health", methods=["GET"])

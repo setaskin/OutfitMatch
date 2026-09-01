@@ -51,3 +51,14 @@ struct ChatMessage: Identifiable {
     let role: ChatRole
     let content: String
 }
+
+struct StyleRecommendation: Identifiable {
+    let id = UUID()
+    let label: String
+    let matches: [MatchResult]
+}
+
+struct StyleAdvice {
+    let advice: String
+    let recommendations: [StyleRecommendation]
+}

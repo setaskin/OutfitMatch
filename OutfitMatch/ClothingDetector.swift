@@ -14,7 +14,7 @@
 import Vision
 import UIKit
 
-enum ClothingCategory {
+enum ClothingCategory: Equatable {
     case footwear
     case outerwear
     case dress
@@ -49,6 +49,38 @@ enum ClothingDetector {
         "hat", "cap", "beanie", "scarf",
     ]
 
+    private static let confidenceThreshold: Float = 0.08
+
+    /// Pure mapping from raw Vision labels to clothing categories — split out
+    /// from `analyzeAll` so it's testable without Vision or a real device.
+    /// Expects labels sorted most-confident first, as Vision returns them.
+    static func categorize(labels: [(identifier: String, confidence: Float)]) -> [ClothingCategory] {
+        var specific: [ClothingCategory] = []
+        var foundGeneral = false
+
+        for label in labels {
+            guard label.confidence > confidenceThreshold else { continue }
+            let identifier = label.identifier.lowercased()
+
+            for (category, keywords) in specificCategoryKeywords
+            where !specific.contains(category) && keywords.contains(where: { identifier.contains($0) }) {
+                specific.append(category)
+            }
+
+            if generalKeywords.contains(where: { identifier.contains($0) }) {
+                foundGeneral = true
+            }
+        }
+
+        if !specific.isEmpty {
+            return specific
+        } else if foundGeneral {
+            return [.general]
+        } else {
+            return []
+        }
+    }
+
     /// Returns every distinct clothing category detected in the photo, most
     /// confident first. Empty means no clothing was found.
     static func analyzeAll(_ image: UIImage) async -> [ClothingCategory] {
@@ -71,31 +103,9 @@ enum ClothingDetector {
                     let observations = (request.results ?? [])
                         .sorted { $0.confidence > $1.confidence }
                         .prefix(20)
+                        .map { (identifier: $0.identifier, confidence: $0.confidence) }
 
-                    var specific: [ClothingCategory] = []
-                    var foundGeneral = false
-
-                    for observation in observations {
-                        guard observation.confidence > 0.08 else { continue }
-                        let identifier = observation.identifier.lowercased()
-
-                        for (category, keywords) in specificCategoryKeywords
-                        where !specific.contains(category) && keywords.contains(where: { identifier.contains($0) }) {
-                            specific.append(category)
-                        }
-
-                        if generalKeywords.contains(where: { identifier.contains($0) }) {
-                            foundGeneral = true
-                        }
-                    }
-
-                    if !specific.isEmpty {
-                        continuation.resume(returning: specific)
-                    } else if foundGeneral {
-                        continuation.resume(returning: [.general])
-                    } else {
-                        continuation.resume(returning: [])
-                    }
+                    continuation.resume(returning: categorize(labels: Array(observations)))
                 } catch {
                     continuation.resume(returning: [])
                 }

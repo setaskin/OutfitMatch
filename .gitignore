@@ -8,4 +8,5 @@ build/
 # Backend (Python)
 backend/.env
 backend/.venv/
-backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/

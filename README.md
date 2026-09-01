@@ -139,11 +139,21 @@ OutfitMatch/
 ├── StyleAdvisorAccess.swift   Free-use counter for Style Advisor (3 free tries)
 ├── SubscriptionManager.swift  StoreKit 2 wrapper for the Style Advisor subscription
 ├── StyleAdvisorPaywallView.swift  Shown once free tries run out
-└── MatchesListView.swift      Shared photo-grid results rendering (all three flows)
+├── MatchesListView.swift      Shared photo-grid results rendering (all three flows)
+├── CameraCapture.swift        UIImagePickerController wrapper for camera capture
+├── SpeechRecognizer.swift     On-device speech-to-text for the chat mic button
+├── ScanTheme.swift            Shared "Scan Line" color/font tokens
+└── ViewfinderCorners.swift    Camera-viewfinder corner-bracket decoration
+
+OutfitMatchTests/              Unit tests (Swift Testing) — DTO decoding, free-use
+                                counter, Vision-label → category mapping
+OutfitMatchUITests/            UI test scaffold (XCTest)
 
 backend/
 ├── app.py                   Flask proxy: /search (Lens), /chat, /style-advice (Claude + Shopping)
 ├── requirements.txt
+├── requirements-dev.txt     Adds pytest on top of requirements.txt
+├── tests/                   pytest suite for the ranking/filtering logic and routes
 └── .env                     Holds API keys (gitignored, not committed)
 
 Configuration.storekit        Local StoreKit product definitions (Style Advisor Premium, $4.99/mo)
@@ -184,6 +194,33 @@ properly):
    `http://192.168.x.x:5050`) instead of `127.0.0.1` — a real device can't
    reach the Mac via loopback. You'll also need an App Transport Security /
    local network exception in Info.plist, not yet set up.
+
+## Tests
+
+**iOS** — unit tests for the app's pure logic (DTO decoding, the free-use
+counter, and the Vision-label → clothing-category mapping): open the
+project in Xcode and hit Cmd+U, or from the command line:
+```bash
+xcodebuild test -project OutfitMatch.xcodeproj -scheme OutfitMatch \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:OutfitMatchTests
+```
+
+**Backend** — a pytest suite covering the ranking/filtering logic
+(`split_exact_and_alternatives`, `is_relevant`, `to_matches`,
+`to_shopping_matches`), the adaptive image compression, and all three
+routes' validation/error/success paths. Every SerpApi and Claude call is
+monkeypatched out, so it runs offline with no API keys and no cost:
+```bash
+cd backend
+source .venv/bin/activate
+pip install -r requirements-dev.txt   # first time
+pytest tests/ -v
+```
+
+Neither suite covers the networking layer (`SearchService`, `ChatService`,
+`StyleAdviceService`) or StoreKit — those are exercised manually against
+the real backend, which is the only way to catch server/client contract
+drift anyway.
 
 ## Next steps
 

@@ -17,9 +17,10 @@ final class StyleAdvisorAccess: ObservableObject {
     private static let freeUsesKey = "styleAdvisorFreeUsesRemaining"
 
     @Published private(set) var freeUsesRemaining: Int
+    private let defaults: UserDefaults
 
-    init() {
-        let defaults = UserDefaults.standard
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         if defaults.object(forKey: Self.freeUsesKey) == nil {
             defaults.set(Self.initialFreeUses, forKey: Self.freeUsesKey)
         }
@@ -29,6 +30,6 @@ final class StyleAdvisorAccess: ObservableObject {
     func consumeFreeUse() {
         guard freeUsesRemaining > 0 else { return }
         freeUsesRemaining -= 1
-        UserDefaults.standard.set(freeUsesRemaining, forKey: Self.freeUsesKey)
+        defaults.set(freeUsesRemaining, forKey: Self.freeUsesKey)
     }
 }

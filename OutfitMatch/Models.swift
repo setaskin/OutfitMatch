@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum MatchType {
+enum MatchType: Equatable {
     case exact
     case alternative
 }

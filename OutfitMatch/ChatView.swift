@@ -21,6 +21,7 @@ struct ChatView: View {
     @State private var errorMessage: String?
     @State private var searchResults: [MatchResult] = []
     @State private var navigateToResults = false
+    @StateObject private var speechRecognizer = SpeechRecognizer()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,8 +48,8 @@ struct ChatView: View {
                 }
             }
 
-            if let errorMessage {
-                Text(errorMessage)
+            if let displayedError {
+                Text(displayedError)
                     .font(.caption)
                     .foregroundStyle(.red)
                     .padding(.horizontal)
@@ -56,6 +57,16 @@ struct ChatView: View {
             }
 
             HStack(alignment: .bottom, spacing: 8) {
+                Button {
+                    speechRecognizer.toggleRecording()
+                } label: {
+                    Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
+                        .font(.system(size: 20))
+                        .foregroundStyle(speechRecognizer.isRecording ? Color.red : Color.accentColor)
+                        .frame(width: 34, height: 34)
+                }
+                .disabled(isSending)
+
                 TextField("Describe what you're looking for…", text: $inputText, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...4)
@@ -75,12 +86,23 @@ struct ChatView: View {
         .navigationDestination(isPresented: $navigateToResults) {
             ChatResultsView(results: searchResults)
         }
+        .onChange(of: speechRecognizer.transcript) { _, newValue in
+            inputText = newValue
+        }
+        .onDisappear {
+            speechRecognizer.stopRecording()
+        }
+    }
+
+    private var displayedError: String? {
+        errorMessage ?? speechRecognizer.errorMessage
     }
 
     private func send() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
+        speechRecognizer.stopRecording()
         inputText = ""
         errorMessage = nil
         messages.append(ChatMessage(role: .user, content: text))

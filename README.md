@@ -1,5 +1,9 @@
 # OutfitMatch
 
+> **Portfolio project.** Shared publicly to demonstrate this work to
+> prospective employers. See [LICENSE](LICENSE) — all rights reserved,
+> not licensed for reuse.
+
 An iOS app: take a photo of an outfit or a single clothing item — or just
 describe it in chat — and get the closest match plus genuinely cheaper
 alternatives you can buy online.

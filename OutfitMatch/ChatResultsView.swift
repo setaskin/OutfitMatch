@@ -22,8 +22,11 @@ struct ChatResultsView: View {
             }
             .padding()
         }
+        .background(Color.scanBackground.ignoresSafeArea())
         .navigationTitle("Matches")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.scanBackground, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
     }
 }
 

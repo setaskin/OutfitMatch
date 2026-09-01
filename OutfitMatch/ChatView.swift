@@ -35,6 +35,7 @@ struct ChatView: View {
                         if isSending {
                             HStack {
                                 ProgressView()
+                                    .tint(Color.scanMint)
                                 Spacer()
                             }
                         }
@@ -51,7 +52,7 @@ struct ChatView: View {
             if let displayedError {
                 Text(displayedError)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.scanAmber)
                     .padding(.horizontal)
                     .padding(.bottom, 4)
             }
@@ -62,27 +63,46 @@ struct ChatView: View {
                 } label: {
                     Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
                         .font(.system(size: 20))
-                        .foregroundStyle(speechRecognizer.isRecording ? Color.red : Color.accentColor)
+                        .foregroundStyle(speechRecognizer.isRecording ? Color.scanAmber : Color.scanMint)
                         .frame(width: 34, height: 34)
                 }
                 .disabled(isSending)
 
-                TextField("Describe what you're looking for…", text: $inputText, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
+                TextField("", text: $inputText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .foregroundStyle(Color.scanInk)
+                    .tint(Color.scanMint)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .placeholder(when: inputText.isEmpty) {
+                        Text("Describe what you're looking for…")
+                            .foregroundStyle(Color.scanInkDim)
+                    }
                     .lineLimit(1...4)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(Color.scanSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 Button {
                     send()
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.system(size: 30))
+                        .foregroundStyle(
+                            inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                ? Color.scanInkDim
+                                : Color.scanMint
+                        )
                 }
                 .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
             }
             .padding()
         }
+        .background(Color.scanBackground.ignoresSafeArea())
         .navigationTitle("Describe It")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.scanBackground, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .navigationDestination(isPresented: $navigateToResults) {
             ChatResultsView(results: searchResults)
         }
@@ -144,12 +164,23 @@ private struct ChatBubble: View {
 
             Text(message.content)
                 .padding(12)
-                .background(message.role == .user ? Color.accentColor : Color(.secondarySystemBackground))
-                .foregroundStyle(message.role == .user ? Color.white : Color.primary)
+                .background(message.role == .user ? Color.scanMint : Color.scanSurface)
+                .foregroundStyle(message.role == .user ? Color.scanBackground : Color.scanInk)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
 
             if message.role == .assistant { Spacer(minLength: 40) }
         }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func placeholder(when shouldShow: Bool, @ViewBuilder placeholder: () -> some View) -> some View {
+        ZStack(alignment: .leading) {
+            if shouldShow { placeholder().allowsHitTesting(false) }
+            self
+        }
+        .contentShape(Rectangle())
     }
 }
 

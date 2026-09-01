@@ -57,16 +57,16 @@ struct StyleAdvisorView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 } else {
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.secondarySystemBackground))
+                        .fill(Color.scanSurface)
                         .frame(height: 280)
                         .overlay(
                             VStack(spacing: 12) {
                                 Image(systemName: "person.crop.rectangle")
                                     .font(.system(size: 44))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.scanInkDim)
                                 Text("Add a photo of yourself or your outfit")
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.scanInkDim)
                             }
                         )
                 }
@@ -77,56 +77,85 @@ struct StyleAdvisorView: View {
                             showCamera = true
                         } label: {
                             Label("Camera", systemImage: "camera")
+                                .font(ScanFont.display(14, weight: .semibold))
+                                .foregroundStyle(Color.scanInk)
                                 .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .strokeBorder(Color.scanHairline, lineWidth: 1.5)
+                                )
                         }
-                        .buttonStyle(.bordered)
                     }
 
                     PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                         Label("Library", systemImage: "photo.on.rectangle")
+                            .font(ScanFont.display(14, weight: .semibold))
+                            .foregroundStyle(Color.scanInk)
                             .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(Color.scanHairline, lineWidth: 1.5)
+                            )
                     }
-                    .buttonStyle(.bordered)
                 }
 
-                TextField(
-                    "What shoes go with these jeans? Casual Gen Z style…",
-                    text: $question,
-                    axis: .vertical
-                )
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(2...5)
+                TextField("", text: $question, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .foregroundStyle(Color.scanInk)
+                    .tint(Color.scanMint)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .placeholder(when: question.isEmpty) {
+                        Text("What shoes go with these jeans? Casual Gen Z style…")
+                            .foregroundStyle(Color.scanInkDim)
+                    }
+                    .lineLimit(2...5)
+                    .padding(12)
+                    .background(Color.scanSurface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 Button {
                     submit()
                 } label: {
-                    if isSubmitting {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else {
-                        Label("Get Style Advice", systemImage: "sparkles")
-                            .frame(maxWidth: .infinity)
+                    Group {
+                        if isSubmitting {
+                            ProgressView()
+                                .tint(Color.scanBackground)
+                        } else {
+                            Label("Get Style Advice", systemImage: "sparkles")
+                                .font(ScanFont.display(15, weight: .bold))
+                        }
                     }
+                    .foregroundStyle(Color.scanBackground)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+                    .background(
+                        (selectedImage == nil || trimmedQuestion.isEmpty) ? Color.scanSurface : Color.scanMint
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .buttonStyle(.borderedProminent)
                 .disabled(selectedImage == nil || trimmedQuestion.isEmpty || isSubmitting)
 
                 if !subscriptionManager.isSubscribed {
                     Text("\(access.freeUsesRemaining) free style check\(access.freeUsesRemaining == 1 ? "" : "s") remaining")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(ScanFont.mono(11))
+                        .foregroundStyle(Color.scanInkDim)
                 }
 
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.scanAmber)
                 }
             }
             .padding()
         }
+        .background(Color.scanBackground.ignoresSafeArea())
         .navigationTitle("Style Advisor")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.scanBackground, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .onChange(of: selectedPhotoItem) { _, newItem in
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self),
@@ -172,6 +201,17 @@ struct StyleAdvisorView: View {
         default:
             return "Couldn't reach the server. Make sure the backend is running."
         }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func placeholder(when shouldShow: Bool, @ViewBuilder placeholder: () -> some View) -> some View {
+        ZStack(alignment: .topLeading) {
+            if shouldShow { placeholder().allowsHitTesting(false) }
+            self
+        }
+        .contentShape(Rectangle())
     }
 }
 

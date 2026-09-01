@@ -13,14 +13,16 @@ struct StyleAdviceResultsView: View {
             VStack(alignment: .leading, spacing: 28) {
                 Text(advice.advice)
                     .font(.body)
+                    .foregroundStyle(Color.scanInk)
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(Color.scanSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
 
                 ForEach(advice.recommendations) { recommendation in
                     VStack(alignment: .leading, spacing: 12) {
                         Text(recommendation.label)
-                            .font(.title3.weight(.bold))
+                            .font(ScanFont.display(17, weight: .bold))
+                            .foregroundStyle(Color.scanInk)
 
                         if recommendation.matches.isEmpty {
                             EmptyMatchesView(subtitle: "No shopping results found for this one.")
@@ -32,8 +34,11 @@ struct StyleAdviceResultsView: View {
             }
             .padding()
         }
+        .background(Color.scanBackground.ignoresSafeArea())
         .navigationTitle("Style Advice")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color.scanBackground, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
     }
 }
 

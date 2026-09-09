@@ -10,7 +10,32 @@ alternatives you can buy online.
 The UI flow, on-device clothing detection, and product search are all real
 now — search is backed by SerpApi's Google Lens (photo) and Google Shopping
 (chat) APIs, and chat is powered by Claude. Both are called through a small
-local backend so the API keys never ship inside the app.
+backend so the API keys never ship inside the app.
+
+## Tech stack
+
+**iOS app**
+- Swift, SwiftUI
+- Apple **Vision** framework — on-device clothing detection ([`ClothingDetector.swift`](OutfitMatch/ClothingDetector.swift))
+- Apple **Speech** framework — on-device voice-to-text for the chat mic button, no network call ([`SpeechRecognizer.swift`](OutfitMatch/SpeechRecognizer.swift))
+- **StoreKit 2** — the Style Advisor subscription ([`SubscriptionManager.swift`](OutfitMatch/SubscriptionManager.swift))
+- **Keychain** (Security framework) — persists the free-trial counter across reinstalls ([`StyleAdvisorAccess.swift`](OutfitMatch/StyleAdvisorAccess.swift))
+- **Swift Testing** — unit tests ([`OutfitMatchTests/`](OutfitMatchTests))
+
+**Backend**
+- Python, **Flask**
+- **Flask-Limiter** — per-IP rate limiting on the paid-API-calling routes
+- **Gunicorn** — production WSGI server
+- **Pillow** — adaptive image compression before upload
+- **pytest** — unit + route tests, API calls mocked out ([`backend/tests/`](backend/tests))
+
+**Third-party APIs**
+- **[SerpApi](https://serpapi.com)** — Google Lens (photo search) and Google Shopping (chat + style advisor search)
+- **[Anthropic Claude API](https://www.anthropic.com)** — the chat conversation, and vision + structured JSON outputs for Style Advisor
+
+**Hosting / infra**
+- **[Render](https://render.com)** (free tier) — backend hosting, auto-deployed from this repo via [`render.yaml`](render.yaml)
+- **GitHub** — version control, CI-free (tests run locally/on demand, see [Tests](#tests))
 
 ## What works right now
 

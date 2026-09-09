@@ -196,6 +196,34 @@ properly):
    connections to local-network addresses (`NSAllowsLocalNetworking`), so
    no further ATS setup is needed for this.
 
+## Deploying the backend
+
+For anyone other than you on your own Wi-Fi to use the app, the backend
+needs to run somewhere reachable over the internet. [Render](https://render.com)'s
+free tier works for this: free HTTPS, deploys straight from this GitHub
+repo, no server to manage. The tradeoff — a free service spins down after
+15 minutes idle, so the first request after a quiet spell takes 30-60
+seconds to wake back up. Fine for testing/demos, not for a real launch
+(that's a $7/mo upgrade away, same setup).
+
+`render.yaml` at the repo root already describes the service, so:
+
+1. Sign up at [render.com](https://render.com) (GitHub login works, no
+   payment needed for the free tier).
+2. **New +** → **Blueprint** → connect this GitHub repo. Render reads
+   `render.yaml` and configures the service automatically (Python
+   runtime, `backend/` as the root, `gunicorn app:app` as the start
+   command).
+3. It'll prompt for the three secrets since they're intentionally not in
+   the repo: `SERPAPI_KEY`, `ANTHROPIC_API_KEY`, and
+   `ANTHROPIC_WORKSPACE_ID` (leave that last one blank unless your
+   Anthropic key is identity-linked).
+4. Deploy. Render gives you an HTTPS URL like
+   `https://outfitmatch-backend.onrender.com`.
+5. Update `BackendConfig.baseURL` in the iOS app to that URL — plain
+   HTTPS, no ATS exception needed (that's only for the local-IP case
+   above).
+
 ## Tests
 
 **iOS** — unit tests for the app's pure logic (DTO decoding, the free-use

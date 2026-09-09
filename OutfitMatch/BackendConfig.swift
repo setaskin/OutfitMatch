@@ -6,9 +6,15 @@
 import Foundation
 
 enum BackendConfig {
-    // Simulator only: this is the Mac's own loopback address, reachable
-    // because the Simulator shares the host's network stack. Testing on a
-    // real device needs the Mac's LAN IP instead (e.g. http://192.168.x.x:5050)
-    // since "localhost" on a physical iPhone means the iPhone itself.
-    static let baseURL = URL(string: "http://127.0.0.1:5050")!
+    // Points at the backend deployed on Render (see render.yaml), so the
+    // app works from the Simulator, a real device, or anywhere else without
+    // needing the Mac's local server running. Render's free tier spins down
+    // after 15 minutes idle, so the first request after a quiet spell can
+    // take 30-60 seconds.
+    //
+    // For local backend development (faster iteration, no cold starts),
+    // swap this for "http://127.0.0.1:5050" in the Simulator, or the Mac's
+    // LAN IP (e.g. "http://192.168.x.x:5050") on a real device — "localhost"
+    // on a physical iPhone means the iPhone itself, not the Mac.
+    static let baseURL = URL(string: "https://outfitmatch-backend.onrender.com")!
 }

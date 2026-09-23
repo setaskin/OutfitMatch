@@ -20,6 +20,25 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>OutfitMatch uses your camera so you can take a photo of an outfit directly in the app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OutfitMatch uses your microphone so you can describe the outfit you're looking for by voice.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>OutfitMatch turns your spoken description into text using speech recognition.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Sora-Regular.ttf</string>
+		<string>Sora-SemiBold.ttf</string>
+		<string>Sora-Bold.ttf</string>
+		<string>JetBrainsMono-Regular.ttf</string>
+		<string>JetBrainsMono-Medium.ttf</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -41,25 +60,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>OutfitMatch uses your camera so you can take a photo of an outfit directly in the app.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>OutfitMatch uses your microphone so you can describe the outfit you're looking for by voice.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>OutfitMatch turns your spoken description into text using speech recognition.</string>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
-	<key>UIAppFonts</key>
-	<array>
-		<string>Sora-Regular.ttf</string>
-		<string>Sora-SemiBold.ttf</string>
-		<string>Sora-Bold.ttf</string>
-		<string>JetBrainsMono-Regular.ttf</string>
-		<string>JetBrainsMono-Medium.ttf</string>
 	</array>
 </dict>
 </plist>

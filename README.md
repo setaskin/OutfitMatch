@@ -65,7 +65,7 @@ backend, not mockups.
 3. **No outfit found** — if no clothing is detected in a photo, the app
    tells you instead of pretending to search.
 4. **Real product search (photo path)** — the photo and detected category
-   are sent to the local backend, which uploads it to SerpApi's Google Lens
+   are sent to the backend, which uploads it to SerpApi's Google Lens
    API and filters results down to ones matching that category.
 5. **Chat search ("Describe It")** — `ChatView.swift` has a short back-and-
    forth with Claude (via the backend's `/chat` endpoint), which asks a
@@ -106,12 +106,42 @@ doesn't have this limitation — it doesn't depend on Vision at all.)
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    subgraph app["iOS app (SwiftUI)"]
+        direction TB
+        photo["Photo search"]
+        chat["Chat search"]
+        advisor["Style Advisor"]
+        vision["Vision<br/>on-device clothing detection"]
+        speech["Speech<br/>on-device dictation"]
+    end
+
+    subgraph backend["Flask backend, hosted on Render"]
+        api["/search<br/>/chat<br/>/style-advice"]
+    end
+
+    subgraph third["Third-party APIs"]
+        direction TB
+        serpapi["SerpApi<br/>Google Lens + Google Shopping"]
+        claude["Anthropic Claude<br/>conversation + vision"]
+    end
+
+    photo --> vision
+    vision -->|photo + category| api
+    speech -.->|transcript| chat
+    chat -->|messages| api
+    advisor -->|photo + question| api
+    api --> serpapi
+    api --> claude
+```
+
 **Client/server split.** The iOS app never talks to SerpApi or Anthropic
 directly — both API keys would be trivially extractable from the app
 binary otherwise. Every search and every Claude call goes through a small
-Flask proxy (`backend/app.py`) that holds the real keys server-side and
-returns only the simplified JSON the app needs. The app talks to exactly
-one thing: its own backend.
+Flask proxy (`backend/app.py`, deployed on Render) that holds the real
+keys server-side and returns only the simplified JSON the app needs. The
+app talks to exactly one thing: its own backend.
 
 **iOS app.** SwiftUI throughout, with a deliberately light hand on
 abstraction: most screens hold their own `@State` and call a stateless,
@@ -191,24 +221,52 @@ OutfitMatchUITests/            UI test scaffold (XCTest)
 
 backend/
 ├── app.py                   Flask proxy: /search (Lens), /chat, /style-advice (Claude + Shopping)
+├── Procfile                 gunicorn start command used by Render
 ├── requirements.txt
 ├── requirements-dev.txt     Adds pytest on top of requirements.txt
 ├── tests/                   pytest suite for the ranking/filtering logic and routes
 └── .env                     Holds API keys (gitignored, not committed)
 
+render.yaml                   Render Blueprint — defines the hosted backend service
+docs/                         Logo lockup + app screenshots used in this README
+PRIVACY.md, TERMS.md          Privacy policy and terms of use
 Configuration.storekit        Local StoreKit product definitions (Style Advisor Premium, $4.99/mo)
 ```
 
 ## Running it
 
-**1. Start the backend** (needed before running the app — search and chat
-calls will fail without it):
+**Run the app.** Open `OutfitMatch.xcodeproj` in Xcode, pick a simulator
+(or your iPhone) from the run destination dropdown, and hit Run (▶).
+Nothing needs to be running locally — `BackendConfig.baseURL` points at
+the deployed backend, so photo search, chat, and Style Advisor all work
+out of the box. The one quirk: the backend's free tier spins down after
+15 minutes idle, so the first search after a quiet spell takes 30-60
+seconds while it wakes back up.
+
+**On a real device** (needed to test clothing detection properly, since
+Vision doesn't run in the Simulator):
+1. Connect your iPhone via USB and trust the computer.
+2. Enable Developer Mode on the phone if prompted (Settings → Privacy &
+   Security → Developer Mode) — this option only appears after Xcode's
+   first attempt to install a build on the device.
+3. Add your Apple ID under Xcode → Settings → Accounts (the free tier is
+   enough for running on your own device), then select that Personal Team
+   under the target's Signing & Capabilities.
+4. Pick your iPhone as the run destination and hit Run.
+
+**Working on the backend itself.** Only needed when changing backend code:
 ```bash
 cd backend
 source .venv/bin/activate   # first time: python3 -m venv .venv
+pip install -r requirements.txt
 python3 app.py
 ```
-Runs on `http://127.0.0.1:5050`. Needs a `backend/.env` file with:
+Runs on `http://127.0.0.1:5050`. Point `BackendConfig.baseURL` at it to
+use it — `http://127.0.0.1:5050` from the Simulator, or the Mac's LAN IP
+(e.g. `http://192.168.x.x:5050`) from a real device, since loopback on an
+iPhone means the iPhone itself. `Info.plist` already permits plain-HTTP to
+local-network addresses (`NSAllowsLocalNetworking`), so no extra ATS setup
+is needed. Requires a `backend/.env` file with:
 ```
 SERPAPI_KEY=your_key_here
 ANTHROPIC_API_KEY=your_key_here
@@ -217,52 +275,28 @@ ANTHROPIC_WORKSPACE_ID=wrkspc_your_id_here   # only if your key is identity-link
 - SerpApi: free plan, 250 searches/month — [serpapi.com](https://serpapi.com/manage-api-key)
 - Anthropic: no free tier, pay-per-use (a few cents covers a lot of testing) — [console.anthropic.com](https://console.anthropic.com/settings/keys)
 
-**2. Run the app — Simulator:**
-Open `OutfitMatch.xcodeproj` in Xcode, pick a simulator from the run
-destination dropdown, and hit Run (▶). `BackendConfig.swift` points at
-`127.0.0.1`, which reaches the Mac's backend automatically from the
-Simulator.
+## Backend hosting
 
-**2. Run the app — real device** (needed to test clothing detection
-properly):
-1. Connect your iPhone via USB and trust the computer.
-2. Enable Developer Mode on the phone if prompted (Settings → Privacy &
-   Security → Developer Mode) — this option only appears after Xcode's
-   first attempt to install a build on the device.
-3. Select your iPhone from Xcode's run destination dropdown and hit Run.
-4. Update `BackendConfig.baseURL` to the Mac's LAN IP (e.g.
-   `http://192.168.x.x:5050`) instead of `127.0.0.1` — a real device can't
-   reach the Mac via loopback. `Info.plist` already allows plain-HTTP
-   connections to local-network addresses (`NSAllowsLocalNetworking`), so
-   no further ATS setup is needed for this.
+The backend runs on [Render](https://render.com)'s free tier at
+`https://outfitmatch-backend.onrender.com`, redeploying automatically on
+every push to `main`. Free tier means it sleeps after 15 minutes of
+inactivity and takes 30-60 seconds to wake — fine for demos and testing,
+and a $7/mo upgrade away from always-on.
 
-## Deploying the backend
+[`render.yaml`](render.yaml) describes the whole service, so deploying a
+fresh copy takes about two minutes:
 
-For anyone other than you on your own Wi-Fi to use the app, the backend
-needs to run somewhere reachable over the internet. [Render](https://render.com)'s
-free tier works for this: free HTTPS, deploys straight from this GitHub
-repo, no server to manage. The tradeoff — a free service spins down after
-15 minutes idle, so the first request after a quiet spell takes 30-60
-seconds to wake back up. Fine for testing/demos, not for a real launch
-(that's a $7/mo upgrade away, same setup).
-
-`render.yaml` at the repo root already describes the service, so:
-
-1. Sign up at [render.com](https://render.com) (GitHub login works, no
-   payment needed for the free tier).
-2. **New +** → **Blueprint** → connect this GitHub repo. Render reads
-   `render.yaml` and configures the service automatically (Python
-   runtime, `backend/` as the root, `gunicorn app:app` as the start
+1. Sign up at [render.com](https://render.com) — GitHub login works, no
+   payment needed for the free tier.
+2. **New +** → **Blueprint** → connect this repo. Render reads
+   `render.yaml` and configures everything itself (Python runtime,
+   `backend/` as the root directory, `gunicorn app:app` as the start
    command).
-3. It'll prompt for the three secrets since they're intentionally not in
-   the repo: `SERPAPI_KEY`, `ANTHROPIC_API_KEY`, and
-   `ANTHROPIC_WORKSPACE_ID` (leave that last one blank unless your
-   Anthropic key is identity-linked).
-4. Deploy. Render gives you an HTTPS URL like
-   `https://outfitmatch-backend.onrender.com`.
-5. Update `BackendConfig.baseURL` in the iOS app to that URL — plain
-   HTTPS, no ATS exception needed (that's only for the local-IP case
-   above).
+3. Fill in the three secrets when prompted — they're deliberately kept out
+   of the repo: `SERPAPI_KEY`, `ANTHROPIC_API_KEY`, and
+   `ANTHROPIC_WORKSPACE_ID` (leave the last blank unless your Anthropic
+   key is identity-linked).
+4. Point `BackendConfig.baseURL` at the HTTPS URL Render hands back.
 
 ## Tests
 
@@ -293,10 +327,9 @@ drift anyway.
 
 ## Next steps
 
-- Deploy the backend somewhere reachable outside your own Wi-Fi (currently
-  `localhost`-only, fine for development) — needs real hosting, HTTPS, and
-  a paid SerpApi plan (the free tier is 250 searches/month) before it
-  could serve real users.
+- A paid SerpApi plan before real users — the free tier's 250
+  searches/month runs out quickly — plus Render's $7/mo tier to drop the
+  cold starts.
 - Apple Developer Program enrollment, a real StoreKit subscription
   product in App Store Connect, and TestFlight testing before any App
   Store submission.

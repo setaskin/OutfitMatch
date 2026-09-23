@@ -402,45 +402,6 @@ def health():
     return jsonify({"status": "ok"})
 
 
-@app.route("/debug-anthropic", methods=["GET"])
-@limiter.exempt
-def debug_anthropic():
-    """TEMPORARY diagnostic for the Render "Connection error" on Claude calls.
-
-    Reports versions and the result of a raw HTTP call to Anthropic that
-    bypasses the SDK, to separate "network can't get there" from "SDK is
-    misbehaving". Deliberately leaks no secrets — only whether a key is
-    present and its non-secret `sk-ant-` prefix. Remove once resolved.
-    """
-    import sys
-
-    import httpx
-
-    info = {
-        "python": sys.version.split()[0],
-        "anthropic_version": getattr(anthropic, "__version__", "unknown"),
-        "httpx_version": httpx.__version__,
-        "has_api_key": bool(ANTHROPIC_API_KEY),
-        "api_key_prefix": (ANTHROPIC_API_KEY[:7] + "...") if ANTHROPIC_API_KEY else None,
-        "api_key_length": len(ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else 0,
-        "has_workspace_id": bool(ANTHROPIC_WORKSPACE_ID),
-    }
-
-    try:
-        response = httpx.get(
-            "https://api.anthropic.com/v1/models",
-            timeout=15,
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY or "",
-                "anthropic-version": "2023-06-01",
-            },
-        )
-        info["raw_http_status"] = response.status_code
-        info["raw_http_body"] = response.text[:300]
-    except Exception as e:
-        info["raw_http_error"] = f"{type(e).__name__}: {e}"
-
-    return jsonify(info)
 
 
 if __name__ == "__main__":

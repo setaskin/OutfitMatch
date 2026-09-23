@@ -320,3 +320,38 @@ def test_style_advice_success_path(client, monkeypatch):
     assert body["advice"] == "Try white sneakers."
     assert len(body["recommendations"]) == 1
     assert len(body["recommendations"][0]["matches"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# read_secret — guards against the "pasted an extra line into the dashboard"
+# failure that took down /chat and /style-advice in production
+# ---------------------------------------------------------------------------
+
+def test_read_secret_returns_clean_value(monkeypatch):
+    monkeypatch.setenv("TEST_SECRET", "sk-ant-abc123")
+    assert app_module.read_secret("TEST_SECRET") == "sk-ant-abc123"
+
+
+def test_read_secret_strips_trailing_newline(monkeypatch):
+    monkeypatch.setenv("TEST_SECRET", "sk-ant-abc123\n")
+    assert app_module.read_secret("TEST_SECRET") == "sk-ant-abc123"
+
+
+def test_read_secret_drops_a_second_pasted_line(monkeypatch):
+    # The real-world case: the key plus the next line of the .env file.
+    # An embedded newline makes the HTTP header illegal.
+    monkeypatch.setenv("TEST_SECRET", "sk-ant-abc123\nANTHROPIC_WORKSPACE_ID=wrkspc_xyz")
+    assert app_module.read_secret("TEST_SECRET") == "sk-ant-abc123"
+
+
+def test_read_secret_result_is_header_safe(monkeypatch):
+    monkeypatch.setenv("TEST_SECRET", "  sk-ant-abc123  \nsomething-else\n")
+    value = app_module.read_secret("TEST_SECRET")
+    assert "\n" not in value and value == value.strip()
+
+
+def test_read_secret_missing_or_blank_is_none(monkeypatch):
+    monkeypatch.delenv("TEST_SECRET", raising=False)
+    assert app_module.read_secret("TEST_SECRET") is None
+    monkeypatch.setenv("TEST_SECRET", "   \n  ")
+    assert app_module.read_secret("TEST_SECRET") is None

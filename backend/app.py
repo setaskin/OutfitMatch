@@ -9,6 +9,7 @@ and this server does the SerpApi calls and returns simplified results.
 import base64
 import io
 import json
+import logging
 import os
 
 import anthropic
@@ -21,7 +22,33 @@ from PIL import Image
 
 load_dotenv()
 
-SERPAPI_KEY = os.environ.get("SERPAPI_KEY")
+
+def read_secret(name):
+    """Read an env var that's destined for an HTTP header.
+
+    Secrets pasted into a hosting dashboard routinely pick up a trailing
+    newline, or the *next* line of the .env file they were copied from. Both
+    make any header built from the value illegal, and the failure surfaces
+    far away from the cause: the Anthropic SDK reports it as a bare
+    "Connection error", which looks like a network problem rather than a
+    config one. Take the first non-empty line and warn if we had to trim,
+    so a stray newline degrades to a log line instead of an outage.
+    """
+    raw = os.environ.get(name)
+    if not raw:
+        return None
+
+    cleaned = raw.strip().splitlines()[0].strip() if raw.strip() else ""
+    if cleaned != raw:
+        logging.warning(
+            "%s contained extra whitespace or lines; using the first line only. "
+            "Check for a stray newline or a second variable pasted into this field.",
+            name,
+        )
+    return cleaned or None
+
+
+SERPAPI_KEY = read_secret("SERPAPI_KEY")
 SERPAPI_MAX_BYTES = 500 * 1024  # SerpApi's image upload limit
 
 app = Flask(__name__)
@@ -38,8 +65,8 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-ANTHROPIC_WORKSPACE_ID = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+ANTHROPIC_API_KEY = read_secret("ANTHROPIC_API_KEY")
+ANTHROPIC_WORKSPACE_ID = read_secret("ANTHROPIC_WORKSPACE_ID")
 # Constructed lazily so a missing key doesn't crash the whole server at
 # startup — /search should keep working even before this key is set.
 anthropic_client = (

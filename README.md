@@ -12,6 +12,21 @@ now — search is backed by SerpApi's Google Lens (photo) and Google Shopping
 (chat) APIs, and chat is powered by Claude. Both are called through a small
 backend so the API keys never ship inside the app.
 
+## Screenshots
+
+Real screens, real results — the matches below came back from the live
+backend, not mockups.
+
+| Home | Photo loaded | Matches |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/01-home.png" width="230" alt="Home screen with the viewfinder empty"> | <img src="docs/screenshots/02-home-loaded.png" width="230" alt="Home screen with a photo loaded and Find Matches enabled"> | <img src="docs/screenshots/03-results.png" width="230" alt="Results screen showing the closest match with price and retailer"> |
+| The "Scan Line" home screen — a camera viewfinder as the entry point. | Photo loaded, HUD switches to `LOADED` and Find Matches activates. | Closest match with real price, retailer, and a tappable product link. |
+
+| Describe It | Style Advisor |
+|:---:|:---:|
+| <img src="docs/screenshots/04-chat.png" width="230" alt="Chat screen for describing an item in plain language"> | <img src="docs/screenshots/05-style-advisor.png" width="230" alt="Style Advisor screen with photo picker and question field"> |
+| Chat search — describe the item instead of photographing it. Mic button dictates on-device. | Style Advisor (paid tier) — upload a photo, ask a styling question. |
+
 ## Tech stack
 
 **iOS app**

@@ -12,6 +12,8 @@ from PIL import Image
 import app as app_module
 from app import (
     SERPAPI_MAX_BYTES,
+    match_terms,
+    relevance_score,
     app as flask_app,
     compress_for_upload,
     is_relevant,
@@ -355,3 +357,75 @@ def test_read_secret_missing_or_blank_is_none(monkeypatch):
     assert app_module.read_secret("TEST_SECRET") is None
     monkeypatch.setenv("TEST_SECRET", "   \n  ")
     assert app_module.read_secret("TEST_SECRET") is None
+
+
+# ---------------------------------------------------------------------------
+# Query-aware shopping ranking
+#
+# Google Shopping orders commercially, so its first result is often the wrong
+# colour/material. These cover the reported case: searching "black fur duster"
+# led with a light grey cardigan while better matches sat in the alternatives.
+# ---------------------------------------------------------------------------
+
+def test_match_terms_drops_noise_words_and_short_tokens():
+    assert match_terms("black fur duster under $60 size 8") == ["black", "fur", "duster"]
+
+
+def test_match_terms_empty_query_is_empty():
+    assert match_terms(None) == []
+    assert match_terms("") == []
+
+
+def test_relevance_score_counts_matching_terms():
+    assert relevance_score("Black Faux Fur Duster Coat", ["black", "fur", "duster"]) == 3
+    assert relevance_score("Light Grey Cardigan", ["black", "fur", "duster"]) == 0
+
+
+def test_closest_match_is_the_best_title_match_not_googles_first():
+    results = [
+        {"title": "Light Grey Cardigan", "source": "A", "extracted_price": 90, "product_link": "a"},
+        {"title": "Black Faux Fur Duster Coat", "source": "B", "extracted_price": 120, "product_link": "b"},
+    ]
+    matches = to_shopping_matches(results, "black fur duster")
+
+    assert matches[0]["title"] == "Black Faux Fur Duster Coat"
+    assert matches[0]["matchType"] == "exact"
+
+
+def test_irrelevant_cheaper_items_are_kept_out_of_alternatives():
+    results = [
+        {"title": "Black Fur Duster Coat", "source": "A", "extracted_price": 120, "product_link": "a"},
+        {"title": "Black Fur Duster, Cropped", "source": "B", "extracted_price": 80, "product_link": "b"},
+        {"title": "Light Grey Cardigan", "source": "C", "extracted_price": 20, "product_link": "c"},
+    ]
+    titles = [m["title"] for m in to_shopping_matches(results, "black fur duster")]
+
+    assert "Light Grey Cardigan" not in titles
+    assert titles[0] == "Black Fur Duster Coat"
+
+
+def test_falls_back_to_google_order_without_a_query():
+    results = [
+        {"title": "First", "source": "A", "extracted_price": 90, "product_link": "a"},
+        {"title": "Second", "source": "B", "extracted_price": 50, "product_link": "b"},
+    ]
+    matches = to_shopping_matches(results)
+    assert matches[0]["title"] == "First"
+
+
+def test_ties_keep_googles_original_order():
+    results = [
+        {"title": "Black Duster One", "source": "A", "extracted_price": 90, "product_link": "a"},
+        {"title": "Black Duster Two", "source": "B", "extracted_price": 95, "product_link": "b"},
+    ]
+    assert to_shopping_matches(results, "black duster")[0]["title"] == "Black Duster One"
+
+
+def test_alternatives_survive_when_nothing_scores():
+    # A strict filter must not empty the grid entirely.
+    results = [
+        {"title": "Black Fur Duster", "source": "A", "extracted_price": 120, "product_link": "a"},
+        {"title": "Unrelated Thing", "source": "B", "extracted_price": 30, "product_link": "b"},
+    ]
+    matches = to_shopping_matches(results, "black fur duster")
+    assert matches[0]["title"] == "Black Fur Duster"

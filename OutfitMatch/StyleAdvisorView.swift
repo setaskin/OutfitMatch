@@ -206,17 +206,6 @@ struct StyleAdvisorView: View {
     }
 }
 
-private extension View {
-    @ViewBuilder
-    func placeholder(when shouldShow: Bool, @ViewBuilder placeholder: () -> some View) -> some View {
-        ZStack(alignment: .topLeading) {
-            if shouldShow { placeholder().allowsHitTesting(false) }
-            self
-        }
-        .contentShape(Rectangle())
-    }
-}
-
 #Preview {
     NavigationStack {
         StyleAdvisorView()

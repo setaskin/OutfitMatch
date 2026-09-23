@@ -11,6 +11,7 @@ import io
 import json
 import logging
 import os
+import re
 
 import anthropic
 import requests
@@ -152,20 +153,61 @@ def is_relevant(item, category):
     return any(keyword in title for keyword in keywords)
 
 
-def split_exact_and_alternatives(priced_items, get_price):
-    """Shared ranking rule: the first (highest-ranked) priced item is the
-    closest match; anything genuinely cheaper than it becomes an
-    alternative, cheapest first."""
+def split_exact_and_alternatives(priced_items, get_price, exact_index=0, keep_alternative=None):
+    """Shared ranking rule: one item leads as the closest match, and anything
+    genuinely cheaper becomes an alternative, cheapest first.
+
+    `exact_index` lets the caller choose which item leads. The Lens path keeps
+    index 0 because Lens already ranks by visual similarity. The Shopping path
+    picks by how well the title matches what the user asked for, because
+    Google Shopping orders commercially rather than by attribute match.
+    `keep_alternative` optionally narrows alternatives to relevant ones.
+    """
     if not priced_items:
         return []
 
-    exact = priced_items[0]
+    exact = priced_items[exact_index]
     exact_price = get_price(exact)
-    alternatives = sorted(
-        (item for item in priced_items[1:] if get_price(item) < exact_price),
-        key=get_price,
-    )
-    return [exact] + alternatives[:5]
+    cheaper = [
+        item
+        for index, item in enumerate(priced_items)
+        if index != exact_index and get_price(item) < exact_price
+    ]
+
+    if keep_alternative:
+        relevant = [item for item in cheaper if keep_alternative(item)]
+        # Only narrow if something survives — a strict filter shouldn't empty
+        # the grid when the alternative is showing nothing at all.
+        if relevant:
+            cheaper = relevant
+
+    return [exact] + sorted(cheaper, key=get_price)[:5]
+
+
+# Words that carry no signal when matching a query against a product title.
+MATCH_STOPWORDS = {
+    "and", "for", "the", "with", "that", "this", "some", "any", "please",
+    "size", "sizes", "under", "below", "over", "about", "around", "approx",
+    "cheap", "cheaper", "cheapest", "budget", "affordable", "inexpensive",
+    "want", "wants", "need", "needs", "looking", "look", "like", "similar",
+    "style", "styled", "new", "buy", "shop", "shopping", "something",
+}
+
+
+def match_terms(query):
+    """The meaningful lowercase words in a query, for scoring product titles."""
+    if not query:
+        return []
+    words = re.findall(r"[a-z0-9]+", query.lower())
+    return [w for w in words if len(w) > 2 and w not in MATCH_STOPWORDS]
+
+
+def relevance_score(title, terms):
+    """How many of the query's meaningful terms appear in this title."""
+    if not terms:
+        return 0
+    lowered = (title or "").lower()
+    return sum(1 for term in terms if term in lowered)
 
 
 def to_matches(visual_matches, category):
@@ -206,9 +248,37 @@ def search_google_shopping(query):
     return response.json().get("shopping_results", [])
 
 
-def to_shopping_matches(shopping_results):
+def to_shopping_matches(shopping_results, query=None):
+    """Turn Google Shopping results into the app's match shape.
+
+    Shopping orders results by commercial relevance, so its first result is
+    routinely the wrong colour or material for what the user described — a
+    search for "black fur duster" would lead with a light grey cardigan while
+    better matches sat further down. So the leading "closest match" is chosen
+    by scoring titles against the query's terms instead of trusting position.
+    """
     priced = [r for r in shopping_results if r.get("extracted_price") is not None]
-    ranked = split_exact_and_alternatives(priced, lambda r: r["extracted_price"])
+    if not priced:
+        return []
+
+    terms = match_terms(query)
+    if terms:
+        # Best-scoring title leads; ties keep Google's original order.
+        best_index = max(
+            range(len(priced)),
+            key=lambda i: (relevance_score(priced[i].get("title", ""), terms), -i),
+        )
+        keep_alternative = lambda item: relevance_score(item.get("title", ""), terms) > 0  # noqa: E731
+    else:
+        best_index = 0
+        keep_alternative = None
+
+    ranked = split_exact_and_alternatives(
+        priced,
+        lambda r: r["extracted_price"],
+        exact_index=best_index,
+        keep_alternative=keep_alternative,
+    )
 
     return [
         {
@@ -372,7 +442,7 @@ def chat():
     if decision.get("action") == "search" and decision.get("query"):
         try:
             shopping_results = search_google_shopping(decision["query"])
-            matches = to_shopping_matches(shopping_results)
+            matches = to_shopping_matches(shopping_results, decision["query"])
         except requests.RequestException as e:
             return jsonify({"error": f"SerpApi request failed: {e}"}), 502
         return jsonify({"action": "search", "message": decision["message"], "matches": matches})
@@ -415,7 +485,7 @@ def style_advice():
         if query:
             try:
                 shopping_results = search_google_shopping(query)
-                matches = to_shopping_matches(shopping_results)
+                matches = to_shopping_matches(shopping_results, query)
             except requests.RequestException:
                 matches = []
         recommendations.append({"label": label, "matches": matches})

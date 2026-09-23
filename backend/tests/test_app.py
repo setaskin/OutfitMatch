@@ -377,7 +377,8 @@ def test_match_terms_empty_query_is_empty():
 
 
 def test_relevance_score_counts_matching_terms():
-    assert relevance_score("Black Faux Fur Duster Coat", ["black", "fur", "duster"]) == 3
+    # "black" is a colour term and weighs 3; "fur" and "duster" weigh 1 each.
+    assert relevance_score("Black Faux Fur Duster Coat", ["black", "fur", "duster"]) == 5
     assert relevance_score("Light Grey Cardigan", ["black", "fur", "duster"]) == 0
 
 
@@ -429,3 +430,50 @@ def test_alternatives_survive_when_nothing_scores():
     ]
     matches = to_shopping_matches(results, "black fur duster")
     assert matches[0]["title"] == "Black Fur Duster"
+
+
+# ---------------------------------------------------------------------------
+# Colour weighting — the specific complaint was wrong-coloured results
+# ---------------------------------------------------------------------------
+
+def test_colour_match_outweighs_a_generic_word():
+    terms = ["black", "fur", "duster"]
+    black = relevance_score("Black Duster Coat", terms)          # colour + 1 generic
+    white = relevance_score("White Plush Fur Cardigan", terms)   # 1 generic only
+    assert black > white
+
+
+def test_wrong_colour_alternatives_are_dropped():
+    results = [
+        {"title": "Black Faux Fur Duster Coat", "source": "A", "extracted_price": 120, "product_link": "a"},
+        {"title": "Black Fur Duster, Cropped", "source": "B", "extracted_price": 60, "product_link": "b"},
+        {"title": "White Plush Hooded Cardigan", "source": "C", "extracted_price": 15, "product_link": "c"},
+        {"title": "Brown Faux Fur Duster", "source": "D", "extracted_price": 20, "product_link": "d"},
+    ]
+    titles = [m["title"] for m in to_shopping_matches(results, "black fur duster")]
+
+    assert titles[0] == "Black Faux Fur Duster Coat"
+    assert "Black Fur Duster, Cropped" in titles
+    assert "White Plush Hooded Cardigan" not in titles
+    assert "Brown Faux Fur Duster" not in titles
+
+
+def test_colourless_query_still_uses_general_relevance():
+    results = [
+        {"title": "Wool Duster Coat", "source": "A", "extracted_price": 100, "product_link": "a"},
+        {"title": "Duster Cardigan Long", "source": "B", "extracted_price": 40, "product_link": "b"},
+        {"title": "Unrelated Kettle", "source": "C", "extracted_price": 5, "product_link": "c"},
+    ]
+    titles = [m["title"] for m in to_shopping_matches(results, "duster coat")]
+    assert "Unrelated Kettle" not in titles
+
+
+def test_wrong_colour_kept_when_nothing_else_is_available():
+    # Better to show something than an empty grid.
+    results = [
+        {"title": "Black Fur Duster", "source": "A", "extracted_price": 120, "product_link": "a"},
+        {"title": "Brown Fur Duster", "source": "B", "extracted_price": 40, "product_link": "b"},
+    ]
+    titles = [m["title"] for m in to_shopping_matches(results, "black fur duster")]
+    assert titles[0] == "Black Fur Duster"
+    assert "Brown Fur Duster" in titles

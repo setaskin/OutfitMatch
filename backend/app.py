@@ -202,12 +202,37 @@ def match_terms(query):
     return [w for w in words if len(w) > 2 and w not in MATCH_STOPWORDS]
 
 
+# Colour is the mismatch a shopper notices first, so it's scored separately
+# from generic words like "cardigan" that almost anything can satisfy.
+COLOR_WORDS = {
+    "black", "white", "grey", "gray", "navy", "blue", "red", "green", "brown",
+    "beige", "cream", "tan", "pink", "purple", "orange", "yellow", "burgundy",
+    "maroon", "olive", "teal", "gold", "silver", "khaki", "ivory", "charcoal",
+}
+
+COLOR_WEIGHT = 3
+
+
 def relevance_score(title, terms):
-    """How many of the query's meaningful terms appear in this title."""
+    """How well a title matches the query's terms, weighting colour heavily.
+
+    Without the weighting, a white cardigan ties with a black duster coat on a
+    query for a black duster — both match one generic word — and ties fall back
+    to Google's order, which is what produced the wrong-colour results.
+    """
     if not terms:
         return 0
     lowered = (title or "").lower()
-    return sum(1 for term in terms if term in lowered)
+    return sum(
+        (COLOR_WEIGHT if term in COLOR_WORDS else 1)
+        for term in terms
+        if term in lowered
+    )
+
+
+def query_colors(terms):
+    """Colour words the user actually asked for, if any."""
+    return [term for term in terms if term in COLOR_WORDS]
 
 
 def to_matches(visual_matches, category):
@@ -268,7 +293,17 @@ def to_shopping_matches(shopping_results, query=None):
             range(len(priced)),
             key=lambda i: (relevance_score(priced[i].get("title", ""), terms), -i),
         )
-        keep_alternative = lambda item: relevance_score(item.get("title", ""), terms) > 0  # noqa: E731
+        # When a colour was asked for, an alternative in the wrong colour isn't
+        # an alternative — it's a different product. Fall back to general
+        # relevance only when no colour was specified.
+        colors = query_colors(terms)
+        if colors:
+            def keep_alternative(item):
+                title = (item.get("title") or "").lower()
+                return any(color in title for color in colors)
+        else:
+            def keep_alternative(item):
+                return relevance_score(item.get("title", ""), terms) > 0
     else:
         best_index = 0
         keep_alternative = None

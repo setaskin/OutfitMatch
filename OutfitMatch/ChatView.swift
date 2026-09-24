@@ -22,6 +22,11 @@ struct ChatView: View {
     @State private var searchResults: [MatchResult] = []
     @State private var navigateToResults = false
     @StateObject private var speechRecognizer = SpeechRecognizer()
+    @StateObject private var voice = VoiceConversation()
+    @State private var showVoiceMode = false
+    /// Set when a spoken turn triggered a search, so leaving voice mode lands
+    /// on the results instead of dropping the user back into an empty chat.
+    @State private var voiceProducedResults = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -70,6 +75,23 @@ struct ChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.scanBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    startVoiceMode()
+                } label: {
+                    Image(systemName: "waveform")
+                        .foregroundStyle(Color.scanMint)
+                }
+                .disabled(isSending)
+                .accessibilityLabel("Start hands-free voice conversation")
+            }
+        }
+        .fullScreenCover(isPresented: $showVoiceMode) {
+            VoiceModeView(conversation: voice) {
+                endVoiceMode()
+            }
+        }
         .navigationDestination(isPresented: $navigateToResults) {
             ChatResultsView(messages: messages, results: searchResults)
         }
@@ -83,6 +105,46 @@ struct ChatView: View {
 
     private var displayedError: String? {
         errorMessage ?? speechRecognizer.errorMessage
+    }
+
+    private func startVoiceMode() {
+        // The tap-to-dictate mic and voice mode both want the microphone;
+        // only one can hold it.
+        speechRecognizer.stopRecording()
+        voiceProducedResults = false
+        showVoiceMode = true
+        voice.start(send: sendSpoken)
+    }
+
+    private func endVoiceMode() {
+        voice.stop()
+        showVoiceMode = false
+        if voiceProducedResults {
+            voiceProducedResults = false
+            navigateToResults = true
+        }
+    }
+
+    /// One spoken turn: append it, send it, and hand back the reply for
+    /// speaking. Results are kept for when the user leaves voice mode rather
+    /// than yanking the screen away mid-conversation.
+    private func sendSpoken(_ text: String) async -> String? {
+        messages.append(ChatMessage(role: .user, content: text))
+
+        do {
+            let turn = try await ChatService.send(history: messages)
+            messages.append(ChatMessage(role: .assistant, content: turn.message))
+
+            if turn.action == .search {
+                searchResults = turn.matches ?? []
+                voiceProducedResults = true
+            }
+            return turn.message
+        } catch {
+            let message = errorText(for: error)
+            voice.errorMessage = message
+            return message
+        }
     }
 
     private func send() {

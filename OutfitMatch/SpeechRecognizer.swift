@@ -18,10 +18,20 @@ final class SpeechRecognizer: ObservableObject {
     @Published private(set) var isRecording = false
     @Published var errorMessage: String?
 
+    /// Set in hands-free mode: called with the finished utterance once the
+    /// user has stopped talking, so the conversation can continue without a
+    /// tap. Left nil for the plain dictate-into-the-field case.
+    var onUtteranceEnd: ((String) -> Void)?
+    /// How long a pause counts as "done talking". Long enough to think
+    /// mid-sentence, short enough not to feel unresponsive.
+    private let silenceThreshold: TimeInterval = 1.6
+
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private var audioEngine: AVAudioEngine?
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
+    private var silenceTimer: Timer?
+    private var lastTranscriptChange = Date()
 
     func toggleRecording() {
         if isRecording {
@@ -97,20 +107,53 @@ final class SpeechRecognizer: ObservableObject {
         self.request = request
         isRecording = true
 
+        lastTranscriptChange = Date()
+        startSilenceTimerIfNeeded()
+
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
                 guard let self else { return }
                 if let result {
-                    self.transcript = result.bestTranscription.formattedString
+                    let updated = result.bestTranscription.formattedString
+                    if updated != self.transcript {
+                        self.transcript = updated
+                        self.lastTranscriptChange = Date()
+                    }
                 }
                 if error != nil || (result?.isFinal ?? false) {
-                    self.stopRecording()
+                    self.finishUtterance()
                 }
             }
         }
     }
 
+    /// Hands-free mode ends an utterance on a pause; tap-to-dictate waits for
+    /// the user to tap again, so the timer only runs when it's needed.
+    private func startSilenceTimerIfNeeded() {
+        guard onUtteranceEnd != nil else { return }
+        silenceTimer?.invalidate()
+        silenceTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isRecording else { return }
+                guard !self.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                if Date().timeIntervalSince(self.lastTranscriptChange) >= self.silenceThreshold {
+                    self.finishUtterance()
+                }
+            }
+        }
+    }
+
+    private func finishUtterance() {
+        let spoken = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let handler = onUtteranceEnd
+        stopRecording()
+        if !spoken.isEmpty { handler?(spoken) }
+    }
+
     func stopRecording() {
+        silenceTimer?.invalidate()
+        silenceTimer = nil
+
         audioEngine?.stop()
         audioEngine?.inputNode.removeTap(onBus: 0)
         request?.endAudio()
@@ -120,5 +163,12 @@ final class SpeechRecognizer: ObservableObject {
         request = nil
         task = nil
         isRecording = false
+    }
+
+    /// Start a fresh listen without clearing `onUtteranceEnd`, for the next
+    /// turn of a hands-free conversation.
+    func listenAgain() {
+        guard !isRecording else { return }
+        startRecording()
     }
 }

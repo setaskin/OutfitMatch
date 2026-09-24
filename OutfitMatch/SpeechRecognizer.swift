@@ -81,9 +81,7 @@ final class SpeechRecognizer: ObservableObject {
         request.shouldReportPartialResults = true
 
         do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
-            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            try AudioSessionConfig.activateForConversation()
         } catch {
             errorMessage = "Couldn't start the audio session."
             return

@@ -13,6 +13,7 @@ import Foundation
 @MainActor
 final class SpeechSynthesizer: NSObject, ObservableObject {
     @Published private(set) var isSpeaking = false
+    @Published var errorMessage: String?
 
     private let synthesizer = AVSpeechSynthesizer()
     /// Called when speech finishes or is cancelled, so the caller can decide
@@ -33,15 +34,14 @@ final class SpeechSynthesizer: NSObject, ObservableObject {
 
         self.onFinish = onFinish
 
-        // Recording leaves the session in a record-only category, which plays
-        // no audio — switch to playback before speaking.
+        // The session is already configured for both directions, so there's
+        // no category to swap here. Just make sure it's active — if it isn't,
+        // report it instead of failing silently, which previously looked like
+        // the reply had simply vanished.
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: .duckOthers)
-            try session.setActive(true)
+            try AudioSessionConfig.activateForConversation()
         } catch {
-            // Speaking is an enhancement, not the feature — if the session
-            // won't cooperate, hand control back rather than stalling.
+            errorMessage = "Couldn't play audio — check the silent switch and volume."
             self.onFinish = nil
             onFinish?()
             return

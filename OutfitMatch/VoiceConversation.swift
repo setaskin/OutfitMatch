@@ -49,6 +49,15 @@ final class VoiceConversation: ObservableObject {
                 self.liveTranscript = text
             }
             .store(in: &cancellables)
+
+        // Audio problems used to fail silently and just resume listening,
+        // which is indistinguishable from the app ignoring you.
+        synthesizer.$errorMessage
+            .compactMap { $0 }
+            .sink { [weak self] message in
+                self?.errorMessage = message
+            }
+            .store(in: &cancellables)
     }
 
     func start(send: @escaping (String) async -> String?) {
@@ -77,6 +86,7 @@ final class VoiceConversation: ObservableObject {
 
     private func handle(_ spoken: String) {
         guard isActive else { return }
+        errorMessage = nil
         phase = .thinking
         liveTranscript = spoken
 
@@ -85,8 +95,9 @@ final class VoiceConversation: ObservableObject {
 
             guard isActive else { return }
             guard let reply = reply ?? nil, !reply.isEmpty else {
-                // Nothing to say back — carry on listening rather than
-                // stranding the user in a dead mode.
+                // No reply to speak. Say so rather than dropping straight back
+                // to listening, which reads as the app having ignored you.
+                errorMessage = "No reply came back. Try saying that again."
                 resumeListening()
                 return
             }
@@ -106,6 +117,6 @@ final class VoiceConversation: ObservableObject {
     }
 
     private func deactivateAudioSession() {
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        AudioSessionConfig.deactivate()
     }
 }

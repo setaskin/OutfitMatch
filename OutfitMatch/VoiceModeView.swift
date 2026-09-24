@@ -117,7 +117,9 @@ struct VoiceModeView: View {
     private var hint: String {
         switch conversation.phase {
         case .listening: return "Say what you're looking for — just pause when you're done."
-        case .thinking: return ""
+        // The backend sleeps when idle and can take up to a minute to wake,
+        // so silence here is expected rather than a sign it's broken.
+        case .thinking: return "Working on it — the first reply can take a moment."
         case .speaking: return ""
         case .idle: return ""
         }

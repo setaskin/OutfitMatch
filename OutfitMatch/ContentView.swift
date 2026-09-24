@@ -129,25 +129,25 @@ struct ContentView: View {
             ViewfinderCorners()
                 .accessibilityHidden(true)
 
+            // Only in the empty state: once a photo is in, it speaks for
+            // itself and dim text over a bright image is just hard to read.
+            // The earlier HUD faked instrument readouts here — including a
+            // MATCH_CONF field that never had a value — which read as
+            // unfinished placeholder text rather than as design.
             VStack {
-                HStack {
-                    Spacer()
-                    Text(selectedImage == nil ? "NO INPUT" : "1× / READY")
-                        .font(ScanFont.mono(9, medium: false))
-                        .foregroundStyle(Color.scanAmber)
-                }
                 Spacer()
                 HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("ITEM_TYPE — \(selectedImage == nil ? "awaiting scan" : "pending analysis")")
-                        Text("MATCH_CONF — —")
+                    if selectedImage == nil {
+                        Text("No photo yet")
+                            .font(ScanFont.mono(10))
+                            .foregroundStyle(Color.scanInkDim)
                     }
-                    .font(ScanFont.mono(9))
-                    .foregroundStyle(Color.scanInkDim)
                     Spacer()
                 }
             }
-            .padding(14)
+            // Clears the corner brackets, which reach ~36pt in from each edge.
+            .padding(.horizontal, 46)
+            .padding(.vertical, 18)
             .accessibilityHidden(true)
         }
         .frame(height: 340)

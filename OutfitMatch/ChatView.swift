@@ -10,6 +10,10 @@
 import SwiftUI
 
 struct ChatView: View {
+    /// Set when arriving from the home screen's voice card, so the listening
+    /// screen opens immediately instead of making the user find the button.
+    var startInVoiceMode = false
+
     @State private var messages: [ChatMessage] = [
         ChatMessage(
             role: .assistant,
@@ -65,9 +69,10 @@ struct ChatView: View {
             ChatInputBar(
                 text: $inputText,
                 speechRecognizer: speechRecognizer,
-                placeholder: "Describe what you're looking for…",
+                placeholder: "What are you after?",
                 isSending: isSending,
-                onSend: send
+                onSend: send,
+                onVoiceMode: startVoiceMode
             )
         }
         .background(Color.scanBackground.ignoresSafeArea())
@@ -75,18 +80,6 @@ struct ChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.scanBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    startVoiceMode()
-                } label: {
-                    Image(systemName: "waveform")
-                        .foregroundStyle(Color.scanMint)
-                }
-                .disabled(isSending)
-                .accessibilityLabel("Start hands-free voice conversation")
-            }
-        }
         .fullScreenCover(isPresented: $showVoiceMode) {
             VoiceModeView(conversation: voice) {
                 endVoiceMode()
@@ -97,6 +90,11 @@ struct ChatView: View {
         }
         .onChange(of: speechRecognizer.transcript) { _, newValue in
             inputText = newValue
+        }
+        .onAppear {
+            if startInVoiceMode && !showVoiceMode && !voice.isActive {
+                startVoiceMode()
+            }
         }
         .onDisappear {
             speechRecognizer.stopRecording()

@@ -40,7 +40,9 @@ struct ContentView: View {
 
                         findMatchesButton
 
-                        HStack(spacing: 10) {
+                        // Top-aligned so the three cards stay level even when
+                        // a longer title wraps to a second line.
+                        HStack(alignment: .top, spacing: 10) {
                             entryCard(
                                 title: "Describe It",
                                 icon: "text.bubble",
@@ -52,6 +54,12 @@ struct ContentView: View {
                                 icon: "wand.and.stars",
                                 iconColor: .scanMint,
                                 destination: StyleAdvisorView()
+                            )
+                            entryCard(
+                                title: "Talk to It",
+                                icon: "waveform",
+                                iconColor: .scanMint,
+                                destination: ChatView(startInVoiceMode: true)
                             )
                         }
                     }
@@ -231,8 +239,10 @@ struct ContentView: View {
                 Text(title)
                     .font(ScanFont.display(13, weight: .semibold))
                     .foregroundStyle(Color.scanInk)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // Equal heights across the row regardless of title wrapping.
+            .frame(maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
             .padding(14)
             .background(Color.scanSurface)
             .clipShape(RoundedRectangle(cornerRadius: 14))

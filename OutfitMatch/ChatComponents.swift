@@ -33,6 +33,10 @@ struct ChatInputBar: View {
     var placeholder: String
     var isSending: Bool
     var onSend: () -> Void
+    /// Opens hands-free voice conversation. Distinct from the mic, which
+    /// only dictates into the field — this hands the whole turn over to
+    /// voice, so it gets its own button rather than overloading the mic.
+    var onVoiceMode: (() -> Void)?
 
     private var trimmed: String {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -65,6 +69,20 @@ struct ChatInputBar: View {
                 .padding(.vertical, 9)
                 .background(Color.scanSurface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            if let onVoiceMode {
+                Button(action: onVoiceMode) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.scanMint)
+                        .frame(width: 34, height: 34)
+                        .background(Color.scanSurface)
+                        .clipShape(Circle())
+                        .overlay(Circle().strokeBorder(Color.scanHairline, lineWidth: 1))
+                }
+                .disabled(isSending)
+                .accessibilityLabel("Start hands-free voice conversation")
+            }
 
             Button(action: onSend) {
                 Image(systemName: "arrow.up.circle.fill")

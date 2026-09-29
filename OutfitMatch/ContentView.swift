@@ -40,8 +40,6 @@ struct ContentView: View {
 
                         findMatchesButton
 
-                        // Top-aligned so the three cards stay level even when
-                        // a longer title wraps to a second line.
                         HStack(alignment: .top, spacing: 10) {
                             entryCard(
                                 title: "Describe It",
@@ -54,12 +52,6 @@ struct ContentView: View {
                                 icon: "wand.and.stars",
                                 iconColor: .scanMint,
                                 destination: StyleAdvisorView()
-                            )
-                            entryCard(
-                                title: "Talk to It",
-                                icon: "waveform",
-                                iconColor: .scanMint,
-                                destination: ChatView(startInVoiceMode: true)
                             )
                         }
                     }

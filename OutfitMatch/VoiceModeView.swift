@@ -18,6 +18,27 @@ struct VoiceModeView: View {
         ZStack {
             Color.scanBackground.ignoresSafeArea()
 
+            // Quick way out, for a tap that wasn't meant to open this at all.
+            // Does the same as Done — the distinction is only how easy it is
+            // to reach when you didn't intend to be here.
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.scanInk)
+                            .frame(width: 36, height: 36)
+                            .background(Color.scanSurface)
+                            .clipShape(Circle())
+                    }
+                    .accessibilityLabel("Close voice mode")
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+
             VStack(spacing: 32) {
                 Spacer()
 
